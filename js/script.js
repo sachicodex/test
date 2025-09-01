@@ -99,6 +99,26 @@ const a = {
     // modal content wrapper
     videoModalContent: document.querySelector('.video-modal-content'),
   };
+// Ensure toast container exists and sits above other UI (top-right)
+if (!t.toastContainer) {
+  const _tc = document.createElement('div');
+  _tc.id = 'toast-container';
+  document.body.appendChild(_tc);
+  t.toastContainer = _tc;
+}
+if (t.toastContainer) {
+  Object.assign(t.toastContainer.style, {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    zIndex: '1000',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    pointerEvents: 'none',
+    alignItems: 'flex-end',
+  });
+}
 async function N() {
   V();
   // ensure UI reflects current viewContext before rendering
@@ -128,7 +148,7 @@ async function N() {
 async function loadVideosFromDB() {
   try {
     const { data, error } = await supabase
-      .from('videos')
+      .from('EduVideoDB')
       .select('*')
       .order('upload_date', { ascending: false });
     if (error) {
@@ -142,7 +162,7 @@ async function loadVideosFromDB() {
       description: row.description,
       duration: row.duration || '0:00',
       views: row.views || 0,
-      instructor: row.instructor || '',
+      // instructor removed from DB; field removed from mapping
       category: row.category || '',
       youtubeLink: row.youtube_link || row.youtubeLink || null,
       uploadDate: row.upload_date ? new Date(row.upload_date) : new Date(),
@@ -233,29 +253,29 @@ function createUploadModal() {
     <div class="upload-modal-content">
       <button class="upload-modal-close" aria-label="Close">✕</button>
       <h2>Upload Video</h2>
-      <form id="uploadForm" class="upload-form">
+      <form id="uploadForm" class="upload-form" autocomplete="off" autocorrect="off" spellcheck="false">
         <div class="row"><input id="u_title" placeholder="Title" required></div>
         <div class="row"><textarea id="u_description" placeholder="Description" style="resize: none"></textarea></div>
         <div class="row inline">
-          <input id="u_duration" placeholder="Duration (e.g. 1:25:40)">
-          <input id="u_views" type="number" placeholder="Views">
+          <input id="u_duration" placeholder="Duration (e.g. 1:25:40)" autocomplete="off">
+          <input id="u_views" type="number" placeholder="Views" autocomplete="off">
         </div>
         <div class="row inline">
-          <input id="u_instructor" placeholder="Instructor">
-          <input id="u_category" placeholder="Category">
+          <input id="u_category" placeholder="Category" autocomplete="off">
+          <input id="u_rating" type="number" step="0.1" placeholder="Rating" autocomplete="off">
         </div>
         <div class="row inline">
-          <input id="u_youtube" placeholder="YouTube Link">
-          <input id="u_date" type="date">
+          <input id="u_youtube" placeholder="YouTube Link" autocomplete="off">
+          <input id="u_date" type="date" autocomplete="off">
         </div>
         <div class="row inline">
-          <input id="u_tags" placeholder="AI Tags (comma separated)">
+          <input id="u_tags" placeholder="AI Tags (comma separated)" autocomplete="off">
           <select id="u_difficulty"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
         </div>
-        <div class="row inline">
-          <input id="u_rating" type="number" step="0.1" placeholder="Rating">
-          <input id="u_thumbnail" placeholder="Thumbnail URL">
-        </div>
+  <div class="row inline">
+  <input id="u_thumbnail" placeholder="Thumbnail URL" autocomplete="off">
+  <input id="u_password" type="password" placeholder="Password" autocomplete="new-password">
+  </div>
         <div class="row actions">
           <button type="button" id="u_cancel" class="btn btn-outline">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -284,12 +304,18 @@ function createUploadModal() {
 
   modal.querySelector('#uploadForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    // check developer password (not stored)
+    const pass = modal.querySelector('#u_password').value || '';
+    if (pass !== 'bD32CCc3') {
+      // wrong password: notify and abort
+      c('Are you Developer', 'error');
+      return;
+    }
     const video = {
       title: modal.querySelector('#u_title').value,
       description: modal.querySelector('#u_description').value,
       duration: modal.querySelector('#u_duration').value,
       views: parseInt(modal.querySelector('#u_views').value) || 0,
-      instructor: modal.querySelector('#u_instructor').value,
       category: modal.querySelector('#u_category').value,
       youtube_link: modal.querySelector('#u_youtube').value,
       upload_date: modal.querySelector('#u_date').value || new Date().toISOString(),
@@ -301,7 +327,7 @@ function createUploadModal() {
     // simple validation
     if (!video.title) return c('Please enter a title', 'error');
     try {
-      const { error } = await supabase.from('videos').insert([video]);
+      const { error } = await supabase.from('EduVideoDB').insert([video]);
       if (error) {
         console.error('upload error', error);
         c('Upload failed', 'error');
@@ -370,7 +396,6 @@ function b(e) {
         const r = [
           s.title,
           s.description,
-          s.instructor,
           s.category,
           ...(s.aiTags || []),
           s.difficulty,
@@ -455,7 +480,6 @@ function W(e) {
       a.searchQuery
     )}</p>
       <div class="search-result-meta">
-        <span class="search-result-instructor">${e.instructor}</span>
         <span class="search-result-views">${f(e.views)} views</span>
       </div>
     </div>
@@ -542,10 +566,6 @@ function K(e, i) {
       </div>
       <p class="video-description">${e.description}</p>
       <div class="video-meta">
-        <div class="video-instructor">
-          <i data-lucide="user"></i>
-          <span>${e.instructor}</span>
-        </div>
         <div class="video-views">
           <i data-lucide="eye"></i>
           <span>${f(e.views)} views</span>
@@ -716,7 +736,7 @@ function openVideoModal(video) {
   // inject header
   const header = document.createElement('div');
   header.className = 'modal-video-header';
-  header.innerHTML = `<div class="modal-title"><h3>${video.title}</h3><div class="modal-sub">${video.instructor}</div></div>`;
+  header.innerHTML = `<div class="modal-title"><h3>${video.title}</h3></div>`;
   t.videoPlayerContainer.appendChild(header);
   const playerWrap = document.createElement('div');
   playerWrap.className = 'modal-video-player';
@@ -1120,6 +1140,12 @@ function c(e, i = "info") {
       <i data-lucide="x"></i>
     </button>
   `),
+    // make individual toast clickable while container ignores pointer events
+    Object.assign(s.style, {
+      pointerEvents: 'auto',
+      zIndex: '1001',
+      boxShadow: '0 6px 18px rgba(0,0,0,0.12)'
+    }),
     t.toastContainer.appendChild(s),
     lucide.createIcons(),
     setTimeout(() => {
