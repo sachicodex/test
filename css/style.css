@@ -1876,3 +1876,199 @@ html {
     background-position: -200% 0;
   }
 }
+
+/* --------------------------------------------------
+   Mobile-first UX & Responsiveness Enhancements
+   Rationale: apply practical UI/UX patterns (visual
+   hierarchy, touch target sizing, progressive
+   disclosure) and real-world tweaks for small screens.
+   Guides used: Fitts' Law (touch target >= 44px),
+   responsive typography (clamp), and content-first
+   stacking for vertical reading patterns.
+   -------------------------------------------------- */
+
+:root {
+  /* recommended minimum touch target used across components */
+  --touch-min: 44px;
+}
+
+/* Responsive typography with fluid scaling to preserve hierarchy */
+.hero-title {
+  /* keep large headings on desktop but scale down smoothly */
+  font-size: clamp(1.5rem, 6vw, 3.5rem);
+}
+.hero-description {
+  font-size: clamp(0.95rem, 2.5vw, 1.25rem);
+}
+
+/* Bigger tappable controls and simplified spacing on small screens */
+@media (max-width: 720px) {
+  /* Increase minimum hit area for interactive elements */
+  .btn,
+  .top-bar-btn,
+  .mobile-menu-toggle,
+  .play-btn,
+  .video-action-btn,
+  .view-btn,
+  .filter-badge,
+  .sort-select {
+    min-height: var(--touch-min);
+    min-width: var(--touch-min);
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+  }
+
+  /* Simplify header and ensure important actions remain visible */
+  .top-bar {
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+  .mobile-menu-toggle {
+    display: block; /* ensure hamburger visible */
+  }
+
+  /* Sidebar should be off-canvas by default; reveal with .mobile-open */
+  .sidebar {
+    transform: translateX(-100%);
+    position: fixed;
+    z-index: 60;
+    transition: transform 0.25s ease;
+    width: 280px;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  .main-content {
+    margin-left: 0;
+  }
+
+  /* Hero and content spacing for faster scanning */
+  .hero-section {
+    padding: 1.5rem 1rem;
+    text-align: left;
+  }
+  .hero-actions {
+    width: 100%;
+    gap: 0.75rem;
+  }
+  .hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Keep search input full-width but keep action buttons inline (flex). On narrowest screens they may wrap. */
+  .search-input-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+    flex-wrap: wrap; /* allow wrapping if space is very limited */
+  }
+  .search-input {
+    flex: 1 1 0;
+    min-width: 0; /* allow input to shrink properly inside flex */
+    /* keep space for the left icon and right buttons */
+    padding: 0.65rem 4.25rem 0.65rem 3rem;
+    font-size: 1rem;
+  }
+  .search-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex: none;
+    align-items: center;
+  }
+  /* ensure the inline search icon sits centered inside the input */
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    color: hsl(var(--muted-foreground));
+  }
+  /* AI assist pill — keep prominent but not full width */
+  .btn-ai {
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  /* Search icon as a compact square tappable control */
+  .btn-search {
+    padding: 0.5rem;
+    width: var(--touch-min);
+    height: var(--touch-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  /* Make grids single-column for faster vertical scanning */
+  .stats-grid,
+  .quick-actions-grid,
+  .videos-container.grid-view .videos-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Video cards: ensure thumbnails stay readable & not too tall */
+  .list-card .video-thumbnail,
+  .grid-card .video-thumbnail {
+    height: auto;
+    aspect-ratio: 16/9;
+  }
+
+  /* Toasts are full width with padding for easier dismissal */
+  .toast-container {
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+  .toast {
+    width: 100%;
+    min-width: 0;
+    padding: 0.75rem;
+  }
+}
+
+/* Extra-small phones: full-screen modals, tighter spacing */
+@media (max-width: 420px) {
+  .hero-title {
+    font-size: clamp(1.25rem, 8vw, 2rem);
+  }
+
+  /* Make video modal take the full screen for immersive playback */
+  .video-modal .video-modal-content {
+    left: 0;
+    top: 0;
+    transform: none;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    padding: 0.5rem;
+  }
+  .modal-video-player iframe,
+  .modal-video-player video {
+    height: calc(100vh - 120px);
+  }
+
+  /* Reduce sidebar initial width to keep focus on content when open */
+  .sidebar {
+    width: 260px;
+  }
+
+  /* Emphasize content order: content first, chrome reduced */
+  .top-bar-search {
+    display: none; /* conserve space; keep search in a dedicated screen */
+  }
+}
+
+/* Accessibility: stronger focus styles for small screens */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.18);
+  border-color: hsl(var(--primary));
+}
