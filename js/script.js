@@ -53,6 +53,7 @@ const a = {
   totalResults: 0,
   searchStartTime: 0,
   videos: [],
+  isMobile: window.innerWidth <= 768,
 },
   t = {
     sidebar: document.getElementById("sidebar"),
@@ -98,6 +99,17 @@ const a = {
     userMenu: document.querySelector('.user-menu'),
     // modal content wrapper
     videoModalContent: document.querySelector('.video-modal-content'),
+    // Mobile navigation elements
+    bottomNavItems: document.querySelectorAll(".bottom-nav-item[data-route]"),
+    mobileHeaderSearchBtn: document.querySelector(".mobile-header-btn[title='Search']"),
+    // Mobile search modal elements
+    mobileSearchModal: document.getElementById("mobile-search-modal"),
+    mobileSearchClose: document.getElementById("mobile-search-close"),
+    mobileSearchInput: document.getElementById("mobile-search-input"),
+    mobileSearchBtn: document.getElementById("mobile-search-btn"),
+    mobileAiAssistBtn: document.getElementById("mobile-ai-assist-btn"),
+    mobileFilterBtns: document.querySelectorAll(".mobile-filter-btn"),
+    mobileSortSelect: document.getElementById("mobile-sort-select"),
   };
 // Ensure toast container exists and sits above other UI (top-right)
 if (!t.toastContainer) {
@@ -228,7 +240,7 @@ function V() {
     B.forEach((l) => {
       l.addEventListener("click", () => Z(l.dataset.filter, l));
     }),
-    (k = t.clearFiltersBtn) == null || k.addEventListener("click", R),
+    (k = t.clearFiltersBtn) == null || k.addEventListener("click", clearAllFilters),
     (T = t.sortSelect) == null || T.addEventListener("change", Y),
     (C = t.gridViewBtn) == null || C.addEventListener("click", () => F("grid")),
     (x = t.listViewBtn) == null || x.addEventListener("click", () => F("list")),
@@ -241,6 +253,32 @@ function V() {
     D.forEach((l) => {
       l.addEventListener("click", (y) => te(y, l));
     }),
+    // Mobile bottom navigation
+    (t.bottomNavItems) == null ||
+    t.bottomNavItems.forEach((l) => {
+      l.addEventListener("click", (y) => handleBottomNavClick(y, l));
+    }),
+    // Mobile header search button
+    (t.mobileHeaderSearchBtn) == null || t.mobileHeaderSearchBtn.addEventListener("click", openMobileSearchModal),
+    // Mobile search modal handlers
+    (t.mobileSearchClose) == null || t.mobileSearchClose.addEventListener("click", closeMobileSearchModal),
+    (t.mobileSearchBtn) == null || t.mobileSearchBtn.addEventListener("click", performMobileSearch),
+    (t.mobileAiAssistBtn) == null || t.mobileAiAssistBtn.addEventListener("click", performMobileAiAssist),
+    (t.mobileSearchInput) == null || t.mobileSearchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") performMobileSearch();
+    }),
+    // Mobile filter buttons
+    (t.mobileFilterBtns) == null ||
+    t.mobileFilterBtns.forEach((btn) => {
+      btn.addEventListener("click", () => handleMobileFilterClick(btn));
+    }),
+    (t.mobileSortSelect) == null || t.mobileSortSelect.addEventListener("change", Y),
+    // Mobile view toggle buttons
+    document.querySelectorAll(".mobile-view-btn").forEach((btn) => {
+      btn.addEventListener("click", () => handleMobileViewClick(btn));
+    }),
+    // Mobile search modal backdrop
+    (t.mobileSearchModal) == null || t.mobileSearchModal.querySelector(".mobile-search-backdrop").addEventListener("click", closeMobileSearchModal),
     document.querySelectorAll(".quick-action-item").forEach((l) => {
       l.addEventListener("click", () => ie(l.dataset.action));
     }),
@@ -366,10 +404,16 @@ function j(e) {
     a.searchQuery.length > 2 ? ue(U, 300)() : (m(), g());
 }
 function O(e) {
-  e.key === "Enter"
-    ? p()
-    : e.key === "Escape" &&
-    (m(), t.suggestionsDropdown.classList.add("hidden"));
+  if (e.key === "Enter") {
+    a.searchQuery = t.searchInput.value;
+    const myVideosNav = document.querySelector('.nav-item[data-route="my-videos"]');
+    if (myVideosNav) {
+        ee({ preventDefault: () => {} }, myVideosNav);
+    }
+  } else if (e.key === "Escape") {
+    m();
+    t.suggestionsDropdown.classList.add("hidden");
+  }
 }
 function H() {
   a.searchQuery.length > 2 &&
@@ -404,40 +448,41 @@ function p() {
     a.searchQuery && e.length > 0 && c(`Found ${e.length} videos`, "info");
 }
 function b(e) {
-  // Build base list: if query provided, filter by query terms; otherwise start with full list
-  const base = e && e.trim()
-    ? (function () {
-      const i = e
-        .toLowerCase()
-        .split(" ")
-        .filter((s) => s.length > 0);
-      return a.videos.filter((s) => {
-        const r = [
-          s.title,
-          s.description,
-          s.category,
-          ...(s.aiTags || []),
-          s.difficulty,
-        ]
-          .join(" ")
-          .toLowerCase();
-        return i.every((n) => r.includes(n));
-      });
-    })()
-    : a.videos.slice();
+  // Start with all videos
+  let result = a.videos.slice();
 
-  // Apply active filters on top of base list (works when search is empty)
-  if (!a.activeFilters || a.activeFilters.length === 0) return base;
-  return base.filter((s) =>
-    a.activeFilters.some((r) => {
-      return (
-        // categories should match exact token (case-insensitive)
-        (s.category && s.category.toLowerCase() === r.toLowerCase()) ||
-        // AI tags may match partial tokens
-        (s.aiTags && s.aiTags.some((n) => n.toLowerCase().includes(r.toLowerCase())))
-      );
-    })
-  );
+  // Apply search query filter if provided
+  if (e && e.trim()) {
+    const searchTerms = e
+      .toLowerCase()
+      .split(" ")
+      .filter((s) => s.length > 0);
+
+    result = result.filter((video) => {
+      const searchableText = [
+        video.title,
+        video.description,
+        video.category,
+        ...(video.aiTags || []),
+        video.difficulty,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return searchTerms.every((term) => searchableText.includes(term));
+    });
+  }
+
+  // Apply category filters
+  if (a.activeFilters && a.activeFilters.length > 0) {
+    result = result.filter((video) =>
+      a.activeFilters.some((filter) => {
+        // Exact category match (case-insensitive)
+        return video.category && video.category.toLowerCase() === filter.toLowerCase();
+      })
+    );
+  }
+
+  return result;
 }
 
 // Toggle visibility of primary page sections depending on viewContext
@@ -531,32 +576,56 @@ function m() {
   t.searchResultsDropdown.classList.add("hidden");
 }
 function g() {
-  const e = performance.now();
-  let i = a.searchQuery ? a.searchResults : a.videos;
-  i = X(i, a.sortBy);
-  const r = (a.currentPage - 1) * a.itemsPerPage + a.itemsPerPage,
-    n = i.slice(0, r);
-  if (
-    ((t.videosGrid.innerHTML = ""),
-      (t.videosContainer.className = `videos-container ${a.viewMode}-view`),
-      i.length === 0)
-  ) {
+  const startTime = performance.now();
+  let videos = a.videos;
+
+  // If viewing saved page, use the saved list only
+  if (a.viewContext === 'saved') {
+    const saved = getSaved();
+    const savedIds = new Set(saved.map(s => String(s.id)));
+    videos = a.videos.filter(v => savedIds.has(String(v.id)));
+  } else {
+    // Apply search and filters for other views
+    videos = b(a.searchQuery);
+  }
+
+  // Sort the videos
+  videos = X(videos, a.sortBy);
+
+  // Pagination
+  const endIndex = (a.currentPage - 1) * a.itemsPerPage + a.itemsPerPage;
+  const videosToShow = videos.slice(0, endIndex);
+
+  // Clear and set up container
+  t.videosGrid.innerHTML = "";
+  t.videosContainer.className = `videos-container ${a.viewMode}-view`;
+
+  if (videos.length === 0) {
     le();
     return;
   }
-  if (
-    (n.forEach((o, d) => {
-      const u = K(o, d);
-      t.videosGrid.appendChild(u);
-    }),
-      r < i.length
-        ? t.loadMoreContainer.classList.remove("hidden")
-        : t.loadMoreContainer.classList.add("hidden"),
-      a.searchQuery)
-  ) {
-    const o = Math.round(performance.now() - e);
-    L(i.length, o);
-  } else t.searchStats.classList.add("hidden");
+
+  // Render videos
+  videosToShow.forEach((video, index) => {
+    const videoElement = K(video, index);
+    t.videosGrid.appendChild(videoElement);
+  });
+
+  // Show/hide load more button
+  if (a.viewContext === 'saved') {
+    t.loadMoreContainer.classList.add("hidden");
+  } else {
+    t.loadMoreContainer.classList.toggle("hidden", endIndex >= videos.length);
+  }
+
+  // Show search stats if there's a search query
+  if (a.searchQuery) {
+    const searchTime = Math.round(performance.now() - startTime);
+    L(videos.length, searchTime);
+  } else {
+    t.searchStats.classList.add("hidden");
+  }
+
   lucide.createIcons();
 }
 function K(e, i) {
@@ -616,6 +685,7 @@ function K(e, i) {
   const n = s.querySelector(".play-btn"),
     o = s.querySelector('.video-action-btn[title="Save"]'),
     d = s.querySelector('.video-action-btn[title="Share"]');
+  const moreBtn = s.querySelector('.video-action-btn[title="More"]');
   // reflect initial saved state
   if (o) o.classList.toggle("active", isSaved(e.id));
   return (
@@ -635,6 +705,11 @@ function K(e, i) {
       navigator.clipboard.writeText(url).then(() => {
         c("Link copied to clipboard!", "success");
       });
+    }),
+    // open AI writer modal when More button clicked
+    moreBtn && moreBtn.addEventListener('click', (u) => {
+      u.stopPropagation();
+      openAIModal(e);
     }),
     s.addEventListener("click", () => {
       // Open YouTube if user clicks any other place on the card
@@ -695,19 +770,21 @@ function saveList(list) {
 }
 
 function isSaved(id) {
-  return getSaved().some((v) => v.id === id);
+  const sid = String(id);
+  return getSaved().some((v) => String(v.id) === sid);
 }
 
 function toggleSave(id) {
   const saved = getSaved();
-  const exists = saved.find((v) => v.id === id);
+  const sid = String(id);
+  const exists = saved.find((v) => String(v.id) === sid);
   if (exists) {
-    const updated = saved.filter((v) => v.id !== id);
+    const updated = saved.filter((v) => String(v.id) !== sid);
     saveList(updated);
     // show remove saved toast
     c("Removed from saved", "info");
   } else {
-    const video = a.videos.find((v) => v.id === id);
+    const video = a.videos.find((v) => String(v.id) === sid);
     if (video) {
       saved.push({ id: video.id, title: video.title, thumbnail: video.thumbnail, youtubeLink: video.youtubeLink || null });
       saveList(saved);
@@ -737,7 +814,7 @@ function renderSavedSection() {
   }
   t.videosGrid.innerHTML = "";
   saved.forEach((sv, idx) => {
-    const v = a.videos.find((x) => x.id === sv.id);
+    const v = a.videos.find((x) => String(x.id) === String(sv.id));
     if (v) {
       const node = K(v, idx);
       t.videosGrid.appendChild(node);
@@ -770,7 +847,7 @@ function openVideoModal(video) {
     const url = new URL(video.youtubeLink);
     const vid = url.searchParams.get("v") || video.youtubeLink.split("/").pop();
     const iframe = document.createElement("iframe");
-    iframe.src = `https://www.youtube.com/embed/${vid}?autoplay=1`;
+    iframe.src = `https://www.youtube.com/embed/${vid}?autoplay=1&mute=1&modestbranding=1`;
     iframe.width = "100%";
     iframe.height = "480";
     iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
@@ -819,6 +896,145 @@ function closeVideoModal() {
   currentModalVideoId = null;
 }
 
+/* AI Writer Modal - lightweight local generator for 'Do' steps */
+const aiModal = document.getElementById('ai-modal');
+const aiModalBackdrop = aiModal ? aiModal.querySelector('.ai-modal-backdrop') : null;
+const aiModalClose = aiModal ? aiModal.querySelector('.ai-modal-close') : null;
+const aiModalOutput = aiModal ? document.getElementById('ai-modal-output') : null;
+const aiModalVideoInfo = aiModal ? document.getElementById('ai-modal-video-info') : null;
+const aiGenerateBtn = document.getElementById('ai-generate-btn');
+const aiCopyBtn = document.getElementById('ai-copy-btn');
+const aiDoneBtn = document.getElementById('ai-close-done');
+const aiToneSelect = document.getElementById('ai-tone-select');
+
+let currentAIVideo = null;
+
+function openAIModal(video) {
+  currentAIVideo = video;
+  if (!aiModal) return;
+  document.body.classList.add('ai-modal-open');
+  aiModal.classList.remove('hidden');
+  aiModal.setAttribute('aria-hidden', 'false');
+  // populate header info
+  if (aiModalVideoInfo) {
+    aiModalVideoInfo.innerHTML = `<strong>${escapeHtml(video.title)}</strong><div class="muted">${escapeHtml(video.description || '')}</div>`;
+  }
+  if (aiModalOutput) aiModalOutput.textContent = '';
+  // default to 'detailed' explanation per preference
+  if (aiToneSelect) aiToneSelect.value = 'detailed';
+  trapFocusInModal(aiModal);
+}
+
+function closeAIModal() {
+  if (!aiModal) return;
+  aiModal.classList.add('hidden');
+  aiModal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('ai-modal-open');
+  releaseFocusTrap();
+  currentAIVideo = null;
+}
+
+function generateAIContent() {
+  if (!currentAIVideo || !aiModalOutput) return;
+  const tone = (aiToneSelect && aiToneSelect.value) || 'do';
+  const title = currentAIVideo.title || '';
+  const desc = currentAIVideo.description || '';
+  const base = `${title}. ${desc}`;
+  const out = simpleAIGenerator(base, tone);
+  aiModalOutput.textContent = out;
+}
+
+function simpleAIGenerator(text, tone) {
+  // Very small heuristic generator for local usage.
+  const sentences = text.split(/[.\n]+/).map(s => s.trim()).filter(Boolean);
+  const title = sentences[0] || text.slice(0, 60);
+  if (tone === 'brief') {
+    return `${title} — This video covers: ${sentences.slice(1, 4).join(', ') || 'key practical steps and measurement techniques.'}`;
+  }
+  if (tone === 'detailed') {
+    return `Overview: ${title}\n\nDetails:\n- ${sentences.slice(1, 6).join('\n- ') || 'Practical techniques, setup, and real-world tips.'}\n\nTips:\n- Take notes during demonstrations.\n- Rewatch sections for measurement steps.`;
+  }
+  // default: 'do' action steps
+  const actions = [];
+  actions.push(`Do 1: Prepare the leveling instrument and ensure tripod is stable.`);
+  actions.push(`Do 2: Level the instrument using the foot screws until the bubble is centered.`);
+  actions.push(`Do 3: Take a backsight on a known benchmark to establish height.`);
+  actions.push(`Do 4: Move to next station and take foresight readings; record all values.`);
+  actions.push(`Do 5: Calculate height differences and verify closure to acceptable tolerance.`);
+  if (desc) actions.push(`Do 6: Notes — ${desc.split('.').slice(0, 2).join('. ')}.`);
+  return `Action Steps for ${title}:\n\n${actions.join('\n')}`;
+}
+
+// copy handler
+aiCopyBtn && aiCopyBtn.addEventListener('click', () => {
+  if (!aiModalOutput) return;
+  const txt = aiModalOutput.innerText || aiModalOutput.textContent || '';
+  navigator.clipboard.writeText(txt).then(() => c('Copied to clipboard', 'success'));
+});
+
+// generate button
+aiGenerateBtn && aiGenerateBtn.addEventListener('click', generateAIContent);
+// close handlers
+aiModalBackdrop && aiModalBackdrop.addEventListener('click', closeAIModal);
+aiModalClose && aiModalClose.addEventListener('click', closeAIModal);
+aiDoneBtn && aiDoneBtn.addEventListener('click', closeAIModal);
+
+// keyboard escape to close
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && aiModal && !aiModal.classList.contains('hidden')) closeAIModal();
+});
+
+// small util: escape html
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]'/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* Consolidated focus trap helpers used by all modals */
+let __previouslyFocused = null;
+function trapFocusInModal(modal) {
+  try {
+    __previouslyFocused = document.activeElement;
+    const focusable = Array.from(modal.querySelectorAll('a[href], button, textarea, input, select, [tabindex]:not([tabindex="-1"])')).filter(Boolean);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    function keyHandler(e) {
+      if (e.key === 'Escape') {
+        // prefer closing any visible modal
+        if (modal.classList.contains('ai-modal')) closeAIModal();
+        if (modal.classList.contains('video-modal')) closeVideoModal();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+    modal.__focusHandler = keyHandler;
+    document.addEventListener('keydown', keyHandler);
+    first.focus();
+  } catch (err) { /* ignore */ }
+}
+
+function releaseFocusTrap(modal) {
+  try {
+    if (modal && modal.__focusHandler) {
+      document.removeEventListener('keydown', modal.__focusHandler);
+      modal.__focusHandler = null;
+    }
+    if (__previouslyFocused && typeof __previouslyFocused.focus === 'function') __previouslyFocused.focus();
+    __previouslyFocused = null;
+  } catch (err) { /* ignore */ }
+}
+
 // Wire modal buttons
 if (t.videoModalClose) t.videoModalClose.addEventListener("click", closeVideoModal);
 if (t.videoModalBackdrop) t.videoModalBackdrop.addEventListener("click", closeVideoModal);
@@ -837,39 +1053,7 @@ if (t.modalSaveBtn) t.modalSaveBtn.addEventListener("click", () => {
 
 // Focus trap utilities for modal
 let _previouslyFocused = null;
-function trapFocusInModal(modal) {
-  _previouslyFocused = document.activeElement;
-  const focusable = modal.querySelectorAll('a[href], button, textarea, input, select, [tabindex]:not([tabindex="-1"])');
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  function keyHandler(e) {
-    if (e.key === 'Escape') {
-      closeVideoModal();
-      return;
-    }
-    if (e.key === 'Tab') {
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    }
-  }
-  modal.__keyHandler = keyHandler;
-  document.addEventListener('keydown', keyHandler);
-  // focus first
-  first && first.focus();
-}
-function releaseFocusTrap() {
-  if (_previouslyFocused) _previouslyFocused.focus();
-  document.removeEventListener('keydown', (e) => { });
-}
+// ...existing code...
 
 // Hide user menu three-dots when sidebar collapsed (improve UX)
 function updateUserMenuVisibility() {
@@ -882,6 +1066,7 @@ function updateUserMenuVisibility() {
 }
 // call when sidebar toggled
 const originalAe = ae;
+
 ae = function () {
   originalAe();
   updateUserMenuVisibility();
@@ -895,8 +1080,12 @@ window.addEventListener('eduvideo:saved-changed', (ev) => {
   document.querySelectorAll('.video-action-btn[title="Save"]').forEach(btn => {
     const card = btn.closest('.video-card');
     if (!card) return;
-    const id = card.dataset && card.dataset.id;
-    // cards generated by K() do not set data-id currently; try to infer from title
+    const cid = card.dataset && card.dataset.id;
+    if (cid) {
+      btn.classList.toggle('active', isSaved(cid));
+      return;
+    }
+    // fallback: infer by title if no data-id
     const titleEl = card.querySelector('.video-title');
     const title = titleEl ? titleEl.textContent.trim() : null;
     const video = a.videos.find(v => v.title === title);
@@ -951,13 +1140,7 @@ function Z(e, i) {
   g();
   // Filter change toast suppressed
 }
-function R() {
-  a.activeFilters = [];
-  t.filterBadges.forEach((e) => e.classList.remove("active"));
-  w();
-  g();
-  // Clear filters toast suppressed
-}
+
 function w() {
   a.activeFilters.length > 0
     ? (t.clearFiltersBtn.classList.remove("hidden"),
@@ -967,11 +1150,35 @@ function w() {
       )}`))
     : (t.clearFiltersBtn.classList.add("hidden"),
       t.activeFiltersSummary.classList.add("hidden"));
+
+  // Sync mobile filter buttons with active filters
+  syncMobileFilters();
+}
+
+// Sync mobile filter buttons with desktop filter state
+function syncMobileFilters() {
+  if (t.mobileFilterBtns) {
+    t.mobileFilterBtns.forEach(btn => {
+      const filter = btn.dataset.filter;
+      const isActive = a.activeFilters.some(f => f.toLowerCase() === filter.toLowerCase());
+      btn.classList.toggle("active", isActive);
+    });
+  }
 }
 function F(e) {
   a.viewMode = e;
-  t.gridViewBtn.classList.toggle("active", e === "grid");
-  t.listViewBtn.classList.toggle("active", e === "list");
+
+  // Update desktop view buttons
+  if (t.gridViewBtn) t.gridViewBtn.classList.toggle("active", e === "grid");
+  if (t.listViewBtn) t.listViewBtn.classList.toggle("active", e === "list");
+
+  // Update mobile view buttons if they exist
+  const mobileGridViewBtn = document.getElementById("mobile-grid-view");
+  const mobileListViewBtn = document.getElementById("mobile-list-view");
+
+  if (mobileGridViewBtn) mobileGridViewBtn.classList.toggle("active", e === "grid");
+  if (mobileListViewBtn) mobileListViewBtn.classList.toggle("active", e === "list");
+
   g();
   // View switch toast suppressed
 }
@@ -979,11 +1186,165 @@ function _() {
   a.currentPage++;
   g();
 }
+// Mobile bottom navigation handler
+function handleBottomNavClick(e, item) {
+  e.preventDefault();
+  const route = item.dataset.route;
+
+  // Update bottom nav active state
+  t.bottomNavItems.forEach((nav) => nav.classList.remove("active"));
+  item.classList.add("active");
+
+  // Update sidebar nav active state
+  t.navItems.forEach((nav) => nav.classList.remove("active"));
+  const sidebarNav = document.querySelector(`.nav-item[data-route="${route}"]`);
+  if (sidebarNav) sidebarNav.classList.add("active");
+
+  // Handle route logic
+  if (route === 'my-videos') a.viewContext = 'videos';
+  else if (route === 'saved') a.viewContext = 'saved';
+  else if (route === 'search') {
+    a.viewContext = 'home';
+    focusSearchInput();
+    return;
+  }
+  else if (route === 'profile') {
+    // For now, just show a toast - could be expanded to show user profile
+    c("Profile feature coming soon!", "info");
+    return;
+  }
+  else a.viewContext = 'home';
+
+  applyViewContextUI();
+  se(route);
+
+  // Close mobile sidebar if open
+  if (a.isMobile) {
+    t.sidebar.classList.remove("mobile-open");
+    t.mobileOverlay.classList.remove("active");
+    document.body.classList.remove("sidebar-open");
+  }
+
+  // ensure home route re-renders the featured/videos list
+  if (route === 'home') {
+    a.viewContext = 'home';
+    applyViewContextUI();
+    g();
+  }
+}
+
+// Mobile search modal functions
+function openMobileSearchModal() {
+  if (t.mobileSearchModal) {
+    t.mobileSearchModal.classList.remove("hidden");
+
+    // Sync mobile filter states with current active filters
+    syncMobileFilters();
+
+    // Sync mobile view buttons with current view mode
+    const mobileGridViewBtn = document.getElementById("mobile-grid-view");
+    const mobileListViewBtn = document.getElementById("mobile-list-view");
+    if (mobileGridViewBtn) mobileGridViewBtn.classList.toggle("active", a.viewMode === "grid");
+    if (mobileListViewBtn) mobileListViewBtn.classList.toggle("active", a.viewMode === "list");
+  }
+}
+
+function closeMobileSearchModal() {
+  if (t.mobileSearchModal) {
+    t.mobileSearchModal.classList.add("hidden");
+  }
+}
+
+function performMobileSearch() {
+  if (t.mobileSearchInput) {
+    const query = t.mobileSearchInput.value.trim();
+    if (query) {
+      a.searchQuery = query;
+      if (t.searchInput) {
+        t.searchInput.value = query;
+      }
+      closeMobileSearchModal();
+      const myVideosNav = document.querySelector('.nav-item[data-route="my-videos"]');
+      if (myVideosNav) {
+          ee({ preventDefault: () => {} }, myVideosNav);
+      }
+    }
+  }
+}
+
+function performMobileAiAssist() {
+  if (t.mobileSearchInput) {
+    const query = t.mobileSearchInput.value.trim();
+    if (query) {
+      a.searchQuery = query;
+      oe(); // Perform AI assist
+      closeMobileSearchModal();
+    } else {
+      c("Please enter a search term first", "warning");
+    }
+  }
+}
+
+function handleMobileFilterClick(btn) {
+  const filter = btn.dataset.filter;
+
+  // Toggle the mobile filter button state
+  btn.classList.toggle("active");
+
+  // Apply filter to main search system
+  const mainFilterBtn = document.querySelector(`[data-filter="${filter}"]`);
+  if (mainFilterBtn) {
+    // Use the same filter logic as desktop
+    Z(filter, mainFilterBtn);
+  }
+
+  // Close modal and show results
+  closeMobileSearchModal();
+  const homeNav = document.querySelector('.bottom-nav-item[data-route="home"]');
+  if (homeNav) {
+    handleBottomNavClick({ preventDefault: () => { } }, homeNav);
+  }
+}
+
+function handleMobileViewClick(btn) {
+  const view = btn.dataset.view;
+
+  // Update all mobile view buttons
+  document.querySelectorAll(".mobile-view-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  // Update desktop view buttons
+  if (t.gridViewBtn) t.gridViewBtn.classList.toggle("active", view === "grid");
+  if (t.listViewBtn) t.listViewBtn.classList.toggle("active", view === "list");
+
+  // Update the view mode and re-render
+  a.viewMode = view;
+  g();
+
+  // Close modal
+  closeMobileSearchModal();
+}
+
+// Focus search input (for mobile header search button)
+function focusSearchInput() {
+  if (a.isMobile) {
+    openMobileSearchModal();
+  } else if (t.searchInput) {
+    t.searchInput.focus();
+  }
+}
+
 function ee(e, i) {
   e.preventDefault();
   const s = i.dataset.route;
   t.navItems.forEach((r) => r.classList.remove("active"));
   i.classList.add("active");
+
+  // Update bottom nav active state
+  t.bottomNavItems.forEach((nav) => nav.classList.remove("active"));
+  const bottomNav = document.querySelector(`.nav-item[data-route="${s}"]`);
+  if (bottomNav) bottomNav.classList.add("active");
+
   // set viewContext
   if (s === 'my-videos') a.viewContext = 'videos';
   else if (s === 'saved') a.viewContext = 'saved';
@@ -1146,7 +1507,7 @@ function L(e, i = 0) {
     t.searchStats.classList.remove("hidden");
 }
 function le() {
-  (t.videosGrid.innerHTML = `
+  t.videosGrid.innerHTML = `
     <div class="no-results">
       <div class="no-results-icon">
         <i data-lucide="search-x"></i>
@@ -1154,19 +1515,32 @@ function le() {
       <h3>No videos found</h3>
       <p>Try adjusting your search terms or filters</p>
       <div class="no-results-actions">
-        <button class="btn btn-secondary" onclick="clearAllFilters()">
+        <button class="btn btn-secondary" id="no-results-clear-filters-btn">
           <i data-lucide="refresh-cw"></i>
           Clear Filters
         </button>
-        <button class="btn btn-outline" onclick="elements.searchInput.value = ''; appState.searchQuery = ''; renderVideos();">
+        <button class="btn btn-outline" id="no-results-clear-search-btn">
           <i data-lucide="x"></i>
           Clear Search
         </button>
       </div>
     </div>
-  `),
-    t.loadMoreContainer.classList.add("hidden"),
-    lucide.createIcons();
+  `;
+  t.loadMoreContainer.classList.add("hidden");
+  lucide.createIcons();
+  const clearFiltersBtn = document.getElementById("no-results-clear-filters-btn");
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener("click", clearAllFilters);
+  }
+  const clearSearchBtn = document.getElementById("no-results-clear-search-btn");
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener("click", () => {
+      if (t.searchInput)
+        t.searchInput.value = "";
+      a.searchQuery = "";
+      g();
+    });
+  }
 }
 function c(e, i = "info") {
   const s = document.createElement("div");
@@ -1249,7 +1623,9 @@ function ge(e) {
     t.suggestionsDropdown.classList.add("hidden");
 }
 function q() {
-  if (window.innerWidth <= 768) {
+  a.isMobile = window.innerWidth <= 768;
+
+  if (a.isMobile) {
     t.sidebar.classList.add("mobile");
     t.mainContent.style.marginLeft = "0";
     // Ensure mobile menu toggle is visible and functional
