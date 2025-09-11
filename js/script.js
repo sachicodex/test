@@ -217,7 +217,10 @@ function V() {
           (a.searchQuery = t.quickSearchInput.value),
           p());
     }),
-    (S = t.searchBtn) == null || S.addEventListener("click", p),
+    (S = t.searchBtn) == null || S.addEventListener("click", () => {
+      a.searchQuery = t.searchInput.value;
+      p();
+    }),
     (t.uploadVideoBtn) == null || t.uploadVideoBtn.addEventListener('click', createUploadModal),
     (I = t.aiAssistBtn) == null || I.addEventListener("click", oe),
     (t.sidebarBrand) == null || t.sidebarBrand.addEventListener("click", () => {
@@ -574,6 +577,7 @@ function A(e, i) {
 }
 function m() {
   t.searchResultsDropdown.classList.add("hidden");
+  t.searchPreviewContainer.classList.add("hidden");
 }
 function g() {
   const startTime = performance.now();
