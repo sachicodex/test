@@ -118,11 +118,35 @@
     <!-- Mobile Overlay -->
     <div id="mobile-overlay" class="mobile-overlay"></div>
 
+    <!-- Mobile App Header -->
+    <div class="mobile-header">
+      <div class="mobile-header-content">
+        <div class="mobile-header-left">
+          <button id="mobile-menu-toggle" class="mobile-menu-toggle">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="mobile-logo">
+            <i data-lucide="play-circle" class="brand-icon"></i>
+            <span class="mobile-brand-text">EduVideo</span>
+          </div>
+        </div>
+        <div class="mobile-header-right">
+          <button class="mobile-header-btn" title="Search">
+            <i data-lucide="search"></i>
+          </button>
+          <button class="mobile-header-btn" title="Notifications">
+            <i data-lucide="bell"></i>
+            <span class="notification-dot"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Main Content -->
     <div class="main-content">
-      <!-- Top Bar -->
-      <div class="top-bar">
-        <button id="mobile-menu-toggle" class="mobile-menu-toggle">
+      <!-- Desktop Top Bar (hidden on mobile) -->
+      <div class="top-bar desktop-only">
+        <button id="desktop-mobile-menu-toggle" class="mobile-menu-toggle">
           <i data-lucide="menu"></i>
         </button>
 
@@ -280,7 +304,7 @@
                 <div class="filters-list">
                   <span class="filter-badge" data-filter="Programming">Programming</span>
                   <span class="filter-badge" data-filter="Mathematics">Mathematics</span>
-                  <span class="filter-badge" data-filter="Science">Science</span>
+                  <span class="filter-badge" data-filter="Engineering Technology">Engineering</span>
                   <span class="filter-badge" data-filter="History">History</span>
                   <span class="filter-badge" data-filter="Languages">Languages</span>
                   <span class="filter-badge" data-filter="Art">Art</span>
@@ -397,6 +421,33 @@
 
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
+    
+    <!-- AI Writer Modal (opens when clicking card three-dots) -->
+    <div id="ai-modal" class="ai-modal hidden" aria-hidden="true">
+      <div class="ai-modal-backdrop"></div>
+      <div class="ai-modal-content" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
+        <button class="ai-modal-close" aria-label="Close">✕</button>
+        <h3 id="ai-modal-title">AI Writer</h3>
+        <div id="ai-modal-video-info" class="ai-video-info"></div>
+
+        <div class="ai-controls">
+          <label for="ai-tone-select" class="sr-only">Tone</label>
+          <select id="ai-tone-select" class="ai-tone-select">
+            <option value="brief">Brief Summary</option>
+            <option value="detailed" selected>Detailed Explanation</option>
+            <option value="do">Action Steps (Do)</option>
+          </select>
+          <button id="ai-generate-btn" class="btn btn-primary">Generate</button>
+        </div>
+
+        <div id="ai-modal-output" class="ai-output" contenteditable="true" aria-label="AI generated content"></div>
+
+        <div class="ai-actions">
+          <button id="ai-copy-btn" class="btn btn-outline">Copy</button>
+          <button id="ai-close-done" class="btn btn-primary">Done</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Video Modal -->
     <div id="video-modal" class="video-modal hidden">
@@ -421,8 +472,88 @@
       </div>
     </div>
 
-</script>
+    <!-- Mobile Search Modal -->
+    <div id="mobile-search-modal" class="mobile-search-modal hidden">
+      <div class="mobile-search-backdrop"></div>
+      <div class="mobile-search-content">
+        <div class="mobile-search-header">
+          <button id="mobile-search-close" class="mobile-search-close">
+            <i data-lucide="x"></i>
+          </button>
+          <h3>Search Videos</h3>
+        </div>
+        <div class="mobile-search-body">
+          <div class="mobile-search-input-container">
+            <i data-lucide="search" class="mobile-search-icon"></i>
+            <input 
+              type="text" 
+              id="mobile-search-input"
+              placeholder="Search videos, topics, or ask AI..."
+              class="mobile-search-input"
+              autocomplete="off"
+            >
+          </div>
+          <div class="mobile-search-actions">
+            <button id="mobile-ai-assist-btn" class="btn btn-primary">
+              <i data-lucide="sparkles"></i>
+              AI Assist
+            </button>
+            <button id="mobile-search-btn" class="btn btn-outline">
+              <i data-lucide="search"></i>
+              Search
+            </button>
+          </div>
+          <div class="mobile-view-controls">
+            <div class="mobile-view-title">View Mode</div>
+            <div class="mobile-view-buttons">
+              <button id="mobile-grid-view" class="mobile-view-btn active" data-view="grid">
+                <i data-lucide="grid-3x3"></i>
+                <span>Grid</span>
+              </button>
+              <button id="mobile-list-view" class="mobile-view-btn" data-view="list">
+                <i data-lucide="list"></i>
+                <span>List</span>
+              </button>
+            </div>
+          </div>
+          <div class="mobile-search-filters">
+            <div class="mobile-filters-title">Quick Filters</div>
+            <div class="mobile-filters-grid">
+              <button class="mobile-filter-btn" data-filter="Programming">Programming</button>
+              <button class="mobile-filter-btn" data-filter="Mathematics">Mathematics</button>
+              <button class="mobile-filter-btn" data-filter="Science">Science</button>
+              <button class="mobile-filter-btn" data-filter="Languages">Languages</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
+    <!-- Mobile Bottom Navigation -->
+    <div class="mobile-bottom-nav">
+      <div class="bottom-nav-content">
+        <a href="#" class="bottom-nav-item active" data-route="home">
+          <i data-lucide="home"></i>
+          <span>Home</span>
+        </a>
+        <a href="#" class="bottom-nav-item" data-route="search">
+          <i data-lucide="search"></i>
+          <span>Search</span>
+        </a>
+        <a href="#" class="bottom-nav-item" data-route="my-videos">
+          <i data-lucide="video"></i>
+          <span>Videos</span>
+        </a>
+        <a href="#" class="bottom-nav-item" data-route="saved">
+          <i data-lucide="bookmark"></i>
+          <span>Saved</span>
+        </a>
+        <a href="#" class="bottom-nav-item" data-route="profile">
+          <i data-lucide="user"></i>
+          <span>Profile</span>
+        </a>
+      </div>
+    </div>
 
   </body>
 </html>
