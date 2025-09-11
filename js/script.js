@@ -70,6 +70,7 @@ const a = {
     searchResultsDropdown: document.getElementById("search-results-dropdown"),
     searchResultsList: document.getElementById("search-results-list"),
     closeSearchResults: document.getElementById("close-search-results"),
+    searchPreviewContainer: document.getElementById("search-preview-container"),
     filterBadges: document.querySelectorAll(".filter-badge"),
     clearFiltersBtn: document.getElementById("clear-filters"),
     activeFiltersSummary: document.getElementById("active-filters-summary"),
@@ -217,7 +218,10 @@ function V() {
           (a.searchQuery = t.quickSearchInput.value),
           p());
     }),
-    (S = t.searchBtn) == null || S.addEventListener("click", p),
+    (S = t.searchBtn) == null || S.addEventListener("click", () => {
+      a.searchQuery = t.searchInput.value;
+      p();
+    }),
     (t.uploadVideoBtn) == null || t.uploadVideoBtn.addEventListener('click', createUploadModal),
     (I = t.aiAssistBtn) == null || I.addEventListener("click", oe),
     (t.sidebarBrand) == null || t.sidebarBrand.addEventListener("click", () => {
@@ -283,7 +287,9 @@ function V() {
       l.addEventListener("click", () => ie(l.dataset.action));
     }),
     window.addEventListener("resize", q),
-    window.addEventListener("click", ge);
+    window.addEventListener("click", ge),
+    // Infinite scroll listener (lightweight; guarded by viewContext)
+    window.addEventListener("scroll", handleInfiniteScroll);
 }
 
 // Create a friendly popup upload modal
@@ -573,7 +579,8 @@ function A(e, i) {
   );
 }
 function m() {
-  t.searchResultsDropdown.classList.add("hidden");
+  if (t.searchResultsDropdown) t.searchResultsDropdown.classList.add("hidden");
+  if (t.searchPreviewContainer) t.searchPreviewContainer.classList.add("hidden");
 }
 function g() {
   const startTime = performance.now();
@@ -611,12 +618,8 @@ function g() {
     t.videosGrid.appendChild(videoElement);
   });
 
-  // Show/hide load more button
-  if (a.viewContext === 'saved') {
-    t.loadMoreContainer.classList.add("hidden");
-  } else {
-    t.loadMoreContainer.classList.toggle("hidden", endIndex >= videos.length);
-  }
+  // Load More UI removed; guard in case element exists
+  if (t.loadMoreContainer) t.loadMoreContainer.classList.toggle("hidden", endIndex >= videos.length);
 
   // Show search stats if there's a search query
   if (a.searchQuery) {
@@ -793,6 +796,10 @@ function toggleSave(id) {
     }
   }
   updateSavedCount();
+  // If on the Saved view, re-render the saved section to reflect changes immediately
+  if (a.viewContext === 'saved') {
+    renderSavedSection();
+  }
   // notify other UI parts to refresh saved state
   try { window.dispatchEvent(new CustomEvent('eduvideo:saved-changed', { detail: { id } })); } catch (e) { }
 }
@@ -806,20 +813,17 @@ function renderSavedSection() {
   // when user navigates to 'saved' route, show saved videos in videos grid
   a.viewContext = 'saved';
   applyViewContextUI();
+  // Reset current page to 1 when entering the saved section
+  a.currentPage = 1;
   const saved = getSaved();
   // show a nicer header in the featured area for saved content
   if (saved.length === 0) {
     t.videosGrid.innerHTML = `<div class="no-results"><h3>No saved videos</h3><p>You haven't saved any videos yet.</p></div>`;
+    if (t.loadMoreContainer) t.loadMoreContainer.classList.add("hidden"); // Hide load more if no saved videos
     return;
   }
-  t.videosGrid.innerHTML = "";
-  saved.forEach((sv, idx) => {
-    const v = a.videos.find((x) => String(x.id) === String(sv.id));
-    if (v) {
-      const node = K(v, idx);
-      t.videosGrid.appendChild(node);
-    }
-  });
+  // Call g() to render the paginated saved videos
+  g();
   updateSavedCount();
   lucide.createIcons();
 }
@@ -1186,6 +1190,35 @@ function _() {
   a.currentPage++;
   g();
 }
+
+// Infinite scroll: only active on My Videos (viewContext === 'videos')
+let __isAutoLoading = false;
+function handleInfiniteScroll() {
+  try {
+    if (a.viewContext !== 'videos') return;
+    const doc = document.documentElement;
+    const scrollPosition = (window.innerHeight || 0) + (window.scrollY || window.pageYOffset || 0);
+    const totalHeight = (doc && doc.scrollHeight) || document.body.scrollHeight || 0;
+    const threshold = 300;
+    if (scrollPosition >= totalHeight - threshold) {
+      // Determine total number of items in current 'videos' context with filters/sort
+      let vids = b(a.searchQuery);
+      vids = X(vids, a.sortBy);
+      const total = vids.length;
+      const loaded = a.currentPage * a.itemsPerPage;
+      if (loaded < total && !__isAutoLoading) {
+        __isAutoLoading = true;
+        a.currentPage++;
+        g();
+        // Prevent rapid repeat triggers while still at bottom
+        setTimeout(() => { __isAutoLoading = false; }, 200);
+      }
+    }
+  } catch (e) {
+    // fail-safe: never block scrolling due to errors
+    __isAutoLoading = false;
+  }
+}
 // Mobile bottom navigation handler
 function handleBottomNavClick(e, item) {
   e.preventDefault();
@@ -1228,6 +1261,7 @@ function handleBottomNavClick(e, item) {
   // ensure home route re-renders the featured/videos list
   if (route === 'home') {
     a.viewContext = 'home';
+    a.currentPage = 1; // Dashboard: constrain to first page
     applyViewContextUI();
     g();
   }
@@ -1342,7 +1376,7 @@ function ee(e, i) {
 
   // Update bottom nav active state
   t.bottomNavItems.forEach((nav) => nav.classList.remove("active"));
-  const bottomNav = document.querySelector(`.nav-item[data-route="${s}"]`);
+  const bottomNav = document.querySelector(`.bottom-nav-item[data-route="${s}"]`);
   if (bottomNav) bottomNav.classList.add("active");
 
   // set viewContext
@@ -1354,6 +1388,7 @@ function ee(e, i) {
   // ensure home route re-renders the featured/videos list (prevents saved list from persisting)
   if (s === 'home') {
     a.viewContext = 'home';
+    a.currentPage = 1; // Dashboard: always show only first 9
     applyViewContextUI();
     g();
   }
@@ -1364,6 +1399,7 @@ function te(e, i) {
   R();
   a.activeFilters = [s];
   a.viewContext = 'videos';
+  a.currentPage = 1; // Reset pagination when navigating via category
   const r = document.querySelector(`[data-filter="${s}"]`);
   r && r.classList.add("active");
   w();
@@ -1380,16 +1416,24 @@ function se(e) {
       t.searchInput.focus();
       break;
     case "my-videos":
+      a.currentPage = 1; // Start with first 9 on My Videos
       applyViewContextUI();
       g();
       break;
     case "saved":
       a.viewContext = 'saved';
+      a.currentPage = 1;
       applyViewContextUI();
       renderSavedSection();
       break;
     case "trending":
       (a.sortBy = "most-viewed"), (t.sortSelect.value = "most-viewed"), g();
+      break;
+    case "home":
+      a.viewContext = 'home';
+      a.currentPage = 1; // Dashboard: only first 9
+      applyViewContextUI();
+      g();
       break;
   }
 }
@@ -1526,7 +1570,7 @@ function le() {
       </div>
     </div>
   `;
-  t.loadMoreContainer.classList.add("hidden");
+  if (t.loadMoreContainer) t.loadMoreContainer.classList.add("hidden");
   lucide.createIcons();
   const clearFiltersBtn = document.getElementById("no-results-clear-filters-btn");
   if (clearFiltersBtn) {
