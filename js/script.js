@@ -109,6 +109,7 @@ const a = {
     mobileSearchBtn: document.getElementById("mobile-search-btn"),
     mobileAiAssistBtn: document.getElementById("mobile-ai-assist-btn"),
     mobileFilterBtns: document.querySelectorAll(".mobile-filter-btn"),
+    mobileSortSelect: document.getElementById("mobile-sort-select"),
   };
 // Ensure toast container exists and sits above other UI (top-right)
 if (!t.toastContainer) {
@@ -239,7 +240,7 @@ function V() {
     B.forEach((l) => {
       l.addEventListener("click", () => Z(l.dataset.filter, l));
     }),
-    (k = t.clearFiltersBtn) == null || k.addEventListener("click", R),
+    (k = t.clearFiltersBtn) == null || k.addEventListener("click", clearAllFilters),
     (T = t.sortSelect) == null || T.addEventListener("change", Y),
     (C = t.gridViewBtn) == null || C.addEventListener("click", () => F("grid")),
     (x = t.listViewBtn) == null || x.addEventListener("click", () => F("list")),
@@ -271,6 +272,7 @@ function V() {
     t.mobileFilterBtns.forEach((btn) => {
       btn.addEventListener("click", () => handleMobileFilterClick(btn));
     }),
+    (t.mobileSortSelect) == null || t.mobileSortSelect.addEventListener("change", Y),
     // Mobile view toggle buttons
     document.querySelectorAll(".mobile-view-btn").forEach((btn) => {
       btn.addEventListener("click", () => handleMobileViewClick(btn));
@@ -402,10 +404,16 @@ function j(e) {
     a.searchQuery.length > 2 ? ue(U, 300)() : (m(), g());
 }
 function O(e) {
-  e.key === "Enter"
-    ? p()
-    : e.key === "Escape" &&
-    (m(), t.suggestionsDropdown.classList.add("hidden"));
+  if (e.key === "Enter") {
+    a.searchQuery = t.searchInput.value;
+    const myVideosNav = document.querySelector('.nav-item[data-route="my-videos"]');
+    if (myVideosNav) {
+        ee({ preventDefault: () => {} }, myVideosNav);
+    }
+  } else if (e.key === "Escape") {
+    m();
+    t.suggestionsDropdown.classList.add("hidden");
+  }
 }
 function H() {
   a.searchQuery.length > 2 &&
@@ -839,7 +847,7 @@ function openVideoModal(video) {
     const url = new URL(video.youtubeLink);
     const vid = url.searchParams.get("v") || video.youtubeLink.split("/").pop();
     const iframe = document.createElement("iframe");
-    iframe.src = `https://www.youtube.com/embed/${vid}?autoplay=1`;
+    iframe.src = `https://www.youtube.com/embed/${vid}?autoplay=1&mute=1&modestbranding=1`;
     iframe.width = "100%";
     iframe.height = "480";
     iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
@@ -978,7 +986,7 @@ document.addEventListener('keydown', (e) => {
 
 // small util: escape html
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return String(s).replace(/[&<>"]'/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 /* Consolidated focus trap helpers used by all modals */
@@ -1058,6 +1066,7 @@ function updateUserMenuVisibility() {
 }
 // call when sidebar toggled
 const originalAe = ae;
+
 ae = function () {
   originalAe();
   updateUserMenuVisibility();
@@ -1131,13 +1140,7 @@ function Z(e, i) {
   g();
   // Filter change toast suppressed
 }
-function R() {
-  a.activeFilters = [];
-  t.filterBadges.forEach((e) => e.classList.remove("active"));
-  w();
-  g();
-  // Clear filters toast suppressed
-}
+
 function w() {
   a.activeFilters.length > 0
     ? (t.clearFiltersBtn.classList.remove("hidden"),
@@ -1170,8 +1173,8 @@ function F(e) {
   if (t.listViewBtn) t.listViewBtn.classList.toggle("active", e === "list");
 
   // Update mobile view buttons if they exist
-  const mobileGridViewBtn = document.querySelector('.mobile-view-btn[data-view="grid"]');
-  const mobileListViewBtn = document.querySelector('.mobile-view-btn[data-view="list"]');
+  const mobileGridViewBtn = document.getElementById("mobile-grid-view");
+  const mobileListViewBtn = document.getElementById("mobile-list-view");
 
   if (mobileGridViewBtn) mobileGridViewBtn.classList.toggle("active", e === "grid");
   if (mobileListViewBtn) mobileListViewBtn.classList.toggle("active", e === "list");
@@ -1243,11 +1246,6 @@ function openMobileSearchModal() {
     const mobileListViewBtn = document.getElementById("mobile-list-view");
     if (mobileGridViewBtn) mobileGridViewBtn.classList.toggle("active", a.viewMode === "grid");
     if (mobileListViewBtn) mobileListViewBtn.classList.toggle("active", a.viewMode === "list");
-
-    // Focus the search input
-    setTimeout(() => {
-      if (t.mobileSearchInput) t.mobileSearchInput.focus();
-    }, 100);
   }
 }
 
@@ -1261,17 +1259,14 @@ function performMobileSearch() {
   if (t.mobileSearchInput) {
     const query = t.mobileSearchInput.value.trim();
     if (query) {
-      // Update main search input and perform search
+      a.searchQuery = query;
       if (t.searchInput) {
         t.searchInput.value = query;
-        a.searchQuery = query;
-        p(); // Perform search
       }
       closeMobileSearchModal();
-      // Navigate to home to show results
-      const homeNav = document.querySelector('.bottom-nav-item[data-route="home"]');
-      if (homeNav) {
-        handleBottomNavClick({ preventDefault: () => { } }, homeNav);
+      const myVideosNav = document.querySelector('.nav-item[data-route="my-videos"]');
+      if (myVideosNav) {
+          ee({ preventDefault: () => {} }, myVideosNav);
       }
     }
   }
@@ -1347,7 +1342,7 @@ function ee(e, i) {
 
   // Update bottom nav active state
   t.bottomNavItems.forEach((nav) => nav.classList.remove("active"));
-  const bottomNav = document.querySelector(`.bottom-nav-item[data-route="${s}"]`);
+  const bottomNav = document.querySelector(`.nav-item[data-route="${s}"]`);
   if (bottomNav) bottomNav.classList.add("active");
 
   // set viewContext
@@ -1512,7 +1507,7 @@ function L(e, i = 0) {
     t.searchStats.classList.remove("hidden");
 }
 function le() {
-  (t.videosGrid.innerHTML = `
+  t.videosGrid.innerHTML = `
     <div class="no-results">
       <div class="no-results-icon">
         <i data-lucide="search-x"></i>
@@ -1520,19 +1515,32 @@ function le() {
       <h3>No videos found</h3>
       <p>Try adjusting your search terms or filters</p>
       <div class="no-results-actions">
-        <button class="btn btn-secondary" onclick="clearAllFilters()">
+        <button class="btn btn-secondary" id="no-results-clear-filters-btn">
           <i data-lucide="refresh-cw"></i>
           Clear Filters
         </button>
-        <button class="btn btn-outline" onclick="elements.searchInput.value = ''; appState.searchQuery = ''; renderVideos();">
+        <button class="btn btn-outline" id="no-results-clear-search-btn">
           <i data-lucide="x"></i>
           Clear Search
         </button>
       </div>
     </div>
-  `),
-    t.loadMoreContainer.classList.add("hidden"),
-    lucide.createIcons();
+  `;
+  t.loadMoreContainer.classList.add("hidden");
+  lucide.createIcons();
+  const clearFiltersBtn = document.getElementById("no-results-clear-filters-btn");
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener("click", clearAllFilters);
+  }
+  const clearSearchBtn = document.getElementById("no-results-clear-search-btn");
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener("click", () => {
+      if (t.searchInput)
+        t.searchInput.value = "";
+      a.searchQuery = "";
+      g();
+    });
+  }
 }
 function c(e, i = "info") {
   const s = document.createElement("div");

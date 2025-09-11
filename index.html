@@ -318,22 +318,24 @@
                 </button>
               </div>
 
-              <!-- Sort Options -->
-              <div class="sort-container">
-                <div class="sort-header">
-                  <i data-lucide="arrow-up-down"></i>
-                  <span>Sort by:</span>
-                </div>
-                <select id="sort-select" class="sort-select">
-                  <option value="relevance">Relevance</option>
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="most-viewed">Most Viewed</option>
-                  <option value="duration-short">Duration (Short)</option>
-                  <option value="duration-long">Duration (Long)</option>
-                  <option value="alphabetical">A-Z</option>
-                </select>
+              
+            </div>
+
+            <!-- Mobile Sort By -->
+            <div class="sort-container mobile-only" style=" display: flex;">
+              <div class="sort-header">
+                <i data-lucide="arrow-up-down"></i>
+                <span>Sort by:</span>
               </div>
+              <select id="mobile-sort-select" class="sort-select">
+                <option value="relevance">Relevance</option>
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="most-viewed">Most Viewed</option>
+                <option value="duration-short">Duration (Short)</option>
+                <option value="duration-long">Duration (Long)</option>
+                <option value="alphabetical">A-Z</option>
+              </select>
             </div>
 
             <!-- Active Filters Summary -->
@@ -350,9 +352,21 @@
         <!-- Featured Content -->
         <div class="featured-section">
           <div class="featured-header">
-            <div>
-              <h2 class="featured-title">Featured Videos</h2>
-              <p class="featured-description">Popular content from our top educators</p>
+            
+            <div class="sort-container">
+              <div class="sort-header">
+                <i data-lucide="arrow-up-down"></i>
+                <span>Sort by:</span>
+              </div>
+              <select id="sort-select" class="sort-select">
+                <option value="relevance">Relevance</option>
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="most-viewed">Most Viewed</option>
+                <option value="duration-short">Duration (Short)</option>
+                <option value="duration-long">Duration (Long)</option>
+                <option value="alphabetical">A-Z</option>
+              </select>
             </div>
             <div class="view-controls">
               <button id="grid-view" class="view-btn active" title="Grid View">
