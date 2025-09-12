@@ -463,7 +463,7 @@ function K(e, i) {
     </div>
     <div class="video-content">
       <div class="video-header">
-        <h3 class="video-title">${e.title}</h3>
+        <h3 class="video-title">${e.title}</h3><br>
         <div class="video-rating">
           <i data-lucide="star"></i>
           <span>${e.rating}</span>
@@ -484,7 +484,7 @@ function K(e, i) {
         </div>
         <div class="video-actions">
           <button class="video-action-btn" title="Save">
-            <i data-lucide="bookmark"></i>
+            ${_svgBookmark(isSaved(e.id) ? 'bookmark-check' : 'bookmark')}
           </button>
           <button class="video-action-btn" title="Share">
             <i data-lucide="share-2"></i>
@@ -508,10 +508,31 @@ function K(e, i) {
       // Open playable modal if youtube link or video file present
       openVideoModal(e);
     }),
+    d && d.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const url = e.youtubeLink || e.videoUrl || window.location.href;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: e.title || 'Video', url });
+          c('Share dialog opened', 'success');
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          c('Link copied to clipboard!', 'success');
+        } else {
+          window.open(url, '_blank');
+        }
+      } catch (err) {
+        c("Couldn't share. Link copied instead.", 'warning');
+        try { await navigator.clipboard.writeText(url); } catch { }
+      }
+    }),
     o.addEventListener("click", (u) => {
       u.stopPropagation();
       toggleSave(e.id);
-      o.classList.toggle("active", isSaved(e.id));
+      const active = isSaved(e.id);
+      o.classList.toggle("active", active);
+      // Rebuild icon with inline SVG (no library dependency)
+      o.innerHTML = _svgBookmark(active ? 'bookmark-check' : 'bookmark');
     }),
     d.addEventListener("click", (u) => {
       u.stopPropagation();
@@ -526,13 +547,8 @@ function K(e, i) {
       openAIModal(e);
     }),
     s.addEventListener("click", () => {
-      // Open YouTube if user clicks any other place on the card
-      const url = e.youtubeLink || e.videoUrl;
-      if (url) {
-        window.open(url, "_blank");
-        return;
-      }
-      // No toast for opening external link
+      // Open in-app video modal on any card click (do not redirect to YouTube)
+      openVideoModal(e);
     }),
     s
   );
@@ -624,7 +640,7 @@ function openVideoModal(video) {
   // inject header
   const header = document.createElement('div');
   header.className = 'modal-video-header';
-  header.innerHTML = `<div class="modal-title"><h3>${video.title}</h3></div>`;
+  header.innerHTML = `<div class="modal-title"><h3>${escapeHtml(video.title)}</h3></div>`;
   t.videoPlayerContainer.appendChild(header);
   const playerWrap = document.createElement('div');
   playerWrap.className = 'modal-video-player';
@@ -635,37 +651,38 @@ function openVideoModal(video) {
     const vid = url.searchParams.get("v") || video.youtubeLink.split("/").pop();
     const iframe = document.createElement("iframe");
     iframe.src = `https://www.youtube.com/embed/${vid}?autoplay=1&mute=1&modestbranding=1`;
-    iframe.width = "100%";
-    iframe.height = "480";
+    // Center and make responsive
+    iframe.style.width = '100%';
+    iframe.style.height = 'auto';
+    iframe.style.aspectRatio = '16 / 9';
+    iframe.style.display = 'block';
+    iframe.style.margin = '0 auto';
     iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
     iframe.allowFullscreen = true;
+    // Center wrapper too
+    playerWrap.style.display = 'flex';
+    playerWrap.style.justifyContent = 'center';
+    playerWrap.style.alignItems = 'center';
     playerWrap.appendChild(iframe);
   } else if (video.videoUrl) {
     const vid = document.createElement("video");
     vid.src = video.videoUrl;
     vid.controls = true;
     vid.autoplay = true;
-    vid.style.width = "100%";
+    vid.style.width = '100%';
+    vid.style.height = 'auto';
+    vid.style.aspectRatio = '16 / 9';
+    vid.style.display = 'block';
+    vid.style.margin = '0 auto';
+    playerWrap.style.display = 'flex';
+    playerWrap.style.justifyContent = 'center';
+    playerWrap.style.alignItems = 'center';
     playerWrap.appendChild(vid);
   } else {
     playerWrap.textContent = "Video cannot be played.";
   }
-  // Update modal save button state
-  if (t.modalSaveBtn) t.modalSaveBtn.classList.toggle("active", isSaved(video.id));
-  // action row (YouTube link / watch externally)
-  const actions = document.createElement('div');
-  actions.className = 'modal-video-actions';
-  if (video.youtubeLink) {
-    const ytBtn = document.createElement('a');
-    ytBtn.href = video.youtubeLink;
-    ytBtn.target = '_blank';
-    ytBtn.rel = 'noopener';
-    ytBtn.className = 'btn btn-outline';
-    ytBtn.textContent = 'Watch on YouTube';
-    actions.appendChild(ytBtn);
-  }
-  // append actions after player
-  t.videoPlayerContainer.appendChild(actions);
+  // Update modal save button state and label
+  if (t.modalSaveBtn) setModalSaveButtonUI();
 
   // display modal and trap focus
   t.videoModal.classList.remove("hidden");
@@ -681,6 +698,32 @@ function closeVideoModal() {
   document.body.style.overflow = '';
   releaseFocusTrap();
   currentModalVideoId = null;
+}
+
+// Inline SVG helper for bookmark icons (avoids runtime replacement issues)
+function _svgBookmark(name) {
+  const attrs = 'xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  if (name === 'bookmark-check') {
+    return `<svg ${attrs}><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"></path><path d="m9 10 2 2 4-4"></path></svg>`;
+  }
+  return `<svg ${attrs}><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg>`;
+}
+
+// Ensure modal Save button shows icon + text and reflects saved state
+function setModalSaveButtonUI() {
+  try {
+    if (!t.modalSaveBtn) return;
+    const active = currentModalVideoId ? isSaved(currentModalVideoId) : false;
+    // Build consistent content: icon + label
+    const iconName = active ? 'bookmark-check' : 'bookmark';
+    t.modalSaveBtn.innerHTML = `${_svgBookmark(iconName)}<span class="btn-label">${active ? 'Saved' : 'Save'}</span>`;
+    t.modalSaveBtn.classList.toggle('active', active);
+    // Colorize when active for clearer affordance
+    t.modalSaveBtn.style.color = active ? 'black' : '';
+    if (window.lucide && typeof lucide.createIcons === 'function') {
+      lucide.createIcons();
+    }
+  } catch (err) { /* noop */ }
 }
 
 /* AI Writer Modal - lightweight local generator for 'Do' steps */
@@ -825,17 +868,31 @@ function releaseFocusTrap(modal) {
 // Wire modal buttons
 if (t.videoModalClose) t.videoModalClose.addEventListener("click", closeVideoModal);
 if (t.videoModalBackdrop) t.videoModalBackdrop.addEventListener("click", closeVideoModal);
-if (t.modalShareBtn) t.modalShareBtn.addEventListener("click", () => {
+if (t.modalShareBtn) t.modalShareBtn.addEventListener("click", async () => {
   if (!currentModalVideoId) return;
   const video = a.videos.find((v) => v.id === currentModalVideoId);
   if (!video) return;
   const url = video.youtubeLink || video.videoUrl || window.location.href;
-  navigator.clipboard.writeText(url).then(() => c("Link copied to clipboard!", "success"));
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: video.title || 'Video', url });
+      c("Share dialog opened", "success");
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      c("Link copied to clipboard!", "success");
+    } else {
+      // Fallback: open new window
+      window.open(url, '_blank');
+    }
+  } catch (err) {
+    c("Couldn't share. Link copied to clipboard instead.", "warning");
+    try { await navigator.clipboard.writeText(url); } catch { }
+  }
 });
 if (t.modalSaveBtn) t.modalSaveBtn.addEventListener("click", () => {
   if (!currentModalVideoId) return;
   toggleSave(currentModalVideoId);
-  if (t.modalSaveBtn) t.modalSaveBtn.classList.toggle("active", isSaved(currentModalVideoId));
+  setModalSaveButtonUI();
 });
 
 // Focus trap utilities for modal
@@ -868,17 +925,24 @@ window.addEventListener('eduvideo:saved-changed', (ev) => {
     if (!card) return;
     const cid = card.dataset && card.dataset.id;
     if (cid) {
-      btn.classList.toggle('active', isSaved(cid));
+      const active = isSaved(cid);
+      btn.classList.toggle('active', active);
+      btn.innerHTML = _svgBookmark(active ? 'bookmark-check' : 'bookmark');
       return;
     }
     // fallback: infer by title if no data-id
     const titleEl = card.querySelector('.video-title');
     const title = titleEl ? titleEl.textContent.trim() : null;
     const video = a.videos.find(v => v.title === title);
-    if (video) btn.classList.toggle('active', isSaved(video.id));
+    if (video) {
+      const active = isSaved(video.id);
+      btn.classList.toggle('active', active);
+      btn.innerHTML = _svgBookmark(active ? 'bookmark-check' : 'bookmark');
+    }
   });
+  try { if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons(); } catch { }
   // update modal save button if open
-  if (currentModalVideoId && t.modalSaveBtn) t.modalSaveBtn.classList.toggle('active', isSaved(currentModalVideoId));
+  if (currentModalVideoId && t.modalSaveBtn) setModalSaveButtonUI();
 });
 function X(e, i) {
   try {

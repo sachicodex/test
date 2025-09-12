@@ -37,7 +37,9 @@
   left: 0;
   top: 0;
   width: 100%;
-  height: 100vh;
+  /* Use dynamic viewport height to avoid keyboard/URL bar issues */
+  height: 100dvh;
+  max-height: 100dvh;
   background: var(--sachi-gradient-dark);
   display: flex;
   flex-direction: column;
@@ -48,6 +50,8 @@
   border-radius: 0;
   opacity: 1;
   visibility: visible;
+  /* Prevent parent page from scrolling when chat is open on mobile */
+  overscroll-behavior: contain;
 }
 
 .chatbot-container.open {
@@ -634,7 +638,8 @@
     right: 0;
     left: 0;
     width: 100%;
-    height: 100vh;
+    /* Dynamic viewport height on mobile to respect visible area */
+    height: 100dvh;
     border-radius: 0;
     transform: translateY(100%);
   }
@@ -644,8 +649,9 @@
   }
 
   .chatbot-toggle {
-    bottom: 20px;
-    right: 20px;
+    /* Place above the mobile bottom navigation (70px) with extra spacing */
+    bottom: calc(70px + 12px);
+    right: 16px;
     width: 56px;
     height: 56px;
     font-size: 1.25rem;
@@ -658,6 +664,23 @@
   .chatbot-suggestions {
     max-height: 100px;
     overflow-y: auto;
+  }
+
+  /* Keep input visible above mobile keyboard by fixing it to the bottom
+     of the visible viewport and reserving space in the messages area. */
+  .chatbot-container.open .chatbot-input-area {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Respect safe area on iOS */
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 5;
+  }
+
+  /* Reserve space so last message is not hidden behind the fixed input bar */
+  .chatbot-messages {
+    padding-bottom: 140px; /* approx input area height + spacing */
   }
 }
 
