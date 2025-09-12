@@ -81,6 +81,20 @@ class SachiDevChatbot {
     );
   }
 
+  // Utility: parse duration "HH:MM:SS" or "MM:SS" into seconds
+  parseDurationToSeconds(d) {
+    try {
+      if (d == null) return 0;
+      if (typeof d === 'number') return d;
+      const parts = String(d).split(':').map((n) => parseInt(n, 10) || 0);
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      return 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   // Determine if we should search the internet
   shouldSearchInternet(message) {
     const internetKeywords = [
@@ -94,35 +108,142 @@ class SachiDevChatbot {
     );
   }
 
-  // Search database for relevant content
+  // Search database for relevant or computed results
   async searchDatabase(query) {
     try {
       if (!this.db) return '';
 
-      const { data, error } = await this.db
-        .from('EduVideoDB')
-        .select('*')
-        .or(`title.ilike.%${query}%, description.ilike.%${query}%, category.ilike.%${query}%, ai_tags.cs.{${query}}`)
-        .limit(8);
+      const q = String(query || '').toLowerCase();
 
+      // Helper to format a video entry
+      const fmt = (video, idx) => {
+        const link = video.youtube_link || video.youtubeLink || video.video_url || video.videoUrl || '#';
+        const title = video.title || 'Untitled';
+        const cat = video.category || 'Unknown';
+        const dur = video.duration || video.duration_text || '0:00';
+        const views = typeof video.views === 'number' ? video.views : parseInt(video.views, 10) || 0;
+        const ratingVal = typeof video.rating === 'number' ? video.rating : parseFloat(video.rating) || null;
+        const rating = ratingVal != null ? ratingVal.toFixed(1) : 'N/A';
+        const desc = (video.description || '').substring(0, 140);
+        return `**${idx}. [${title}](${link})**\n📚 Category: ${cat}  ⏱️ ${dur}  👀 ${views}  ⭐ ${rating}\n📝 ${desc}...`;
+      };
+
+      // 1) Handle meta queries that require computation
+      const asksLongest = (q.includes('longest') && q.includes('video')) ||
+        (q.includes('longest') && q.includes('duration')) ||
+        (q.includes('max') && q.includes('duration')) ||
+        (q.includes('duration') && (q.includes('long') || q.includes('longer')));
+
+      const asksShortest = (q.includes('shortest') && q.includes('video')) ||
+        (q.includes('shortest') && q.includes('duration')) ||
+        (q.includes('duration') && q.includes('short'));
+
+      const asksMostViewed = q.includes('most viewed') || (q.includes('most') && q.includes('view'));
+      const asksHighestRated = q.includes('highest rated') || q.includes('top rated') || (q.includes('best') && q.includes('rating'));
+      const asksNewest = q.includes('newest') || q.includes('latest') || q.includes('recent');
+      const asksOldest = q.includes('oldest');
+
+      // Utility to fetch a reasonable set of rows for computation
+      const fetchAllForCompute = async () => {
+        const sel = 'id,title,description,category,views,rating,duration,youtube_link,video_url,thumbnail,upload_date';
+        const { data, error } = await this.db.from('EduVideoDB').select(sel).limit(500);
+        if (error) throw error;
+        return data || [];
+      };
+
+      if (asksLongest || asksShortest) {
+        const rows = await fetchAllForCompute();
+        if (!rows.length) return 'No videos found in our database.';
+        const sorted = rows
+          .map(v => ({ ...v, __dur: this.parseDurationToSeconds(v.duration) }))
+          .sort((a, b) => (asksLongest ? b.__dur - a.__dur : a.__dur - b.__dur));
+        const top = sorted.slice(0, 3);
+        const header = asksLongest ? '📏 Longest Videos' : '⏱️ Shortest Videos';
+        let out = `${header} (based on duration):\n\n`;
+        top.forEach((v, i) => { out += fmt(v, i + 1) + '\n\n'; });
+        return out.trim();
+      }
+
+      if (asksMostViewed) {
+        const { data, error } = await this.db
+          .from('EduVideoDB')
+          .select('*')
+          .order('views', { ascending: false })
+          .limit(5);
+        if (error) throw error;
+        if (!data || !data.length) return 'No videos found in our database.';
+        let out = '🔥 Most Viewed Videos:\n\n';
+        data.forEach((v, i) => { out += fmt(v, i + 1) + '\n\n'; });
+        return out.trim();
+      }
+
+      if (asksHighestRated) {
+        const { data, error } = await this.db
+          .from('EduVideoDB')
+          .select('*')
+          .order('rating', { ascending: false, nullsFirst: false })
+          .limit(5);
+        if (error) throw error;
+        if (!data || !data.length) return 'No videos found in our database.';
+        let out = '⭐ Highest Rated Videos:\n\n';
+        data.forEach((v, i) => { out += fmt(v, i + 1) + '\n\n'; });
+        return out.trim();
+      }
+
+      if (asksNewest || asksOldest) {
+        const { data, error } = await this.db
+          .from('EduVideoDB')
+          .select('*')
+          .order('upload_date', { ascending: asksNewest ? false : true })
+          .limit(5);
+        if (error) throw error;
+        if (!data || !data.length) return 'No videos found in our database.';
+        let out = `${asksNewest ? '🆕 Newest' : '📼 Oldest'} Videos:\n\n`;
+        data.forEach((v, i) => { out += fmt(v, i + 1) + '\n\n'; });
+        return out.trim();
+      }
+
+      // 2) Text search across multiple tokens and columns
+      const tokens = q
+        .split(/\s+/)
+        .map(t => t.trim())
+        .filter(t => t.length > 1 && !['which','what','do','you','have','the','a','an','is','of','for','to'].includes(t));
+
+      let orExpr = '';
+      if (tokens.length) {
+        const parts = [];
+        tokens.forEach((t) => {
+          parts.push(`title.ilike.%${t}%`);
+          parts.push(`description.ilike.%${t}%`);
+          parts.push(`category.ilike.%${t}%`);
+        });
+        orExpr = parts.join(',');
+      }
+
+      let queryBuilder = this.db.from('EduVideoDB').select('*').limit(8);
+      if (orExpr) queryBuilder = queryBuilder.or(orExpr);
+      const { data, error } = await queryBuilder;
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        return 'No relevant videos found in our database.';
+        // Fallback: show top viewed if no text match
+        const { data: top, error: err2 } = await this.db
+          .from('EduVideoDB')
+          .select('*')
+          .order('views', { ascending: false })
+          .limit(5);
+        if (err2) throw err2;
+        if (!top || !top.length) return 'No videos found in our database.';
+        let out = '🎥 No direct matches. Here are popular videos instead:\n\n';
+        top.forEach((v, i) => { out += fmt(v, i + 1) + '\n\n'; });
+        return out.trim();
       }
 
-      let results = '🎥 **Relevant Videos from Our Database:**\n\n';
+      let results = '🎥 Relevant Videos from Our Database:\n\n';
       data.forEach((video, index) => {
-        const videoLink = video.youtubeLink || video.videoUrl || '#';
-        results += `**${index + 1}. [${video.title}](${videoLink})**\n`;
-        results += `📚 Category: ${video.category}\n`;
-        results += `⏱️ Duration: ${video.duration}\n`;
-        results += `👀 Views: ${video.views}\n`;
-        results += `⭐ Rating: ${video.rating ? video.rating.toFixed(1) : 'N/A'}\n`;
-        results += `📝 ${video.description.substring(0, 120)}...\n\n`;
+        results += fmt(video, index + 1) + '\n\n';
       });
-
-      return results;
+      return results.trim();
     } catch (error) {
       console.error('Database search error:', error);
       return 'Error searching database.';

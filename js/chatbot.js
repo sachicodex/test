@@ -110,6 +110,9 @@ class ChatbotUI {
 
   showWelcomeScreen() {
     this.welcomeScreen.style.display = 'flex';
+    // Center welcome screen content as requested
+    this.welcomeScreen.style.alignItems = 'center';
+    this.welcomeScreen.style.justifyContent = 'center';
     this.messagesContainer.style.display = 'none';
     this.inputArea.style.display = 'none';
 
@@ -213,13 +216,7 @@ class ChatbotUI {
     const messageDiv = document.createElement('div');
     messageDiv.className = `chatbot-message ${role}`;
 
-    // Only render avatar for assistant messages per user's request
-    if (role !== 'user') {
-      const avatar = document.createElement('div');
-      avatar.className = 'chatbot-message-avatar';
-      avatar.textContent = 'SD';
-      messageDiv.appendChild(avatar);
-    }
+    // Avatar removed per request: no avatar is rendered for assistant responses
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'chatbot-message-content';

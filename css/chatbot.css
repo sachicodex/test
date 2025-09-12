@@ -13,12 +13,16 @@
   --sachi-darker: #020617; /* Darker background */
   --sachi-gray: #1e293b; /* Gray for cards */
   --sachi-light-gray: #334155; /* Light gray for borders */
-  
+
   /* Gradients */
-  --sachi-gradient: linear-gradient(135deg, var(--sachi-primary), var(--sachi-secondary));
+  --sachi-gradient: linear-gradient(
+    135deg,
+    var(--sachi-primary),
+    var(--sachi-secondary)
+  );
   --sachi-gradient-dark: linear-gradient(135deg, #0f172a, #1e293b);
   --sachi-gradient-card: linear-gradient(135deg, #1e293b, #334155);
-  
+
   /* Shadows */
   --sachi-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   --sachi-shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.4);
@@ -69,11 +73,11 @@
     box-shadow: var(--sachi-shadow-lg);
     transform: translateY(100%) scale(0.9);
   }
-  
+
   .chatbot-container.open {
     transform: translateY(0) scale(1);
   }
-  
+
   .chatbot-container.closing {
     transform: translateY(100%) scale(0.9);
     opacity: 0;
@@ -242,7 +246,7 @@
 
 .chatbot-message-content {
   background: var(--sachi-gray);
-  border: 1px solid var(--sachi-light-gray);
+  border: 0px solid var(--sachi-light-gray);
   border-radius: 12px;
   padding: 12px 16px;
   position: relative;
@@ -270,7 +274,7 @@
   border-radius: 0.5rem;
   padding: 0.5rem;
   margin: 0.5rem 0;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 0.9rem;
   display: inline-block;
 }
@@ -591,7 +595,9 @@
 }
 
 @keyframes typingDot {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.4;
   }
@@ -602,7 +608,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -611,7 +618,8 @@
 }
 
 @keyframes mathGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 5px rgba(99, 102, 241, 0.3);
   }
   50% {
