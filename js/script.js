@@ -29,13 +29,25 @@
     fetch(n.href, o);
   }
 })();
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { DB, UPLOAD, SAVED, SEARCH, TOAST } from "../services/index.js";
 
 // connect to Supabase (credentials provided by workspace/user)
-const supabase = createClient(
+const supabase = DB.initDB(
   "https://zzrxoeolscadwvjtcxsr.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6cnhvZW9sc2NhZHd2anRjeHNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2MTkwMzMsImV4cCI6MjA3MjE5NTAzM30.oGgD9Pzf_y5_79CqfnlbgdQXxocXLVjLprM1PeqNp3Y"
 );
+
+// Wrapper to open Upload modal via service
+function openUploadModalService() {
+  UPLOAD.createUploadModal({
+    supabase,
+    state: a,
+    notify: c,
+    onUploaded: async () => {
+      await loadVideosFromDB();
+    }
+  });
+}
 
 lucide.createIcons();
 
@@ -112,33 +124,6 @@ const a = {
     mobileFilterBtns: document.querySelectorAll(".mobile-filter-btn"),
     mobileSortSelect: document.getElementById("mobile-sort-select"),
   };
-// Ensure toast container exists and sits above other UI (top-right)
-if (!t.toastContainer) {
-  const _tc = document.createElement('div');
-  _tc.id = 'toast-container';
-  document.body.appendChild(_tc);
-  t.toastContainer = _tc;
-}
-if (t.toastContainer) {
-  // ensure the toast container is the last child of <body> so it sits above other siblings
-  try {
-    document.body.appendChild(t.toastContainer);
-  } catch (e) {
-    // append may fail in odd environments; ignore
-  }
-  Object.assign(t.toastContainer.style, {
-    position: 'fixed',
-    top: '20px',
-    right: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    pointerEvents: 'none',
-    alignItems: 'flex-end',
-  });
-  // enforce highest z-index with !important to override other rules
-  try { t.toastContainer.style.setProperty('z-index', '2147483647', 'important'); } catch (e) { }
-}
 async function N() {
   V();
   // ensure UI reflects current viewContext before rendering
@@ -167,32 +152,8 @@ async function N() {
 // Load videos from Supabase and map to app shape
 async function loadVideosFromDB() {
   try {
-    const { data, error } = await supabase
-      .from('EduVideoDB')
-      .select('*')
-      .order('upload_date', { ascending: false });
-    if (error) {
-      console.error('Supabase load error', error);
-      c('Unable to load videos', 'error');
-      return;
-    }
-    a.videos = (data || []).map((row) => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      duration: row.duration || '0:00',
-      views: row.views || 0,
-      // instructor removed from DB; field removed from mapping
-      category: row.category || '',
-      youtubeLink: row.youtube_link || row.youtubeLink || null,
-      uploadDate: row.upload_date ? new Date(row.upload_date) : new Date(),
-      aiTags: row.ai_tags || row.aiTags || [],
-      difficulty: row.difficulty || 'Beginner',
-      rating: typeof row.rating === 'number' ? row.rating : parseFloat(row.rating) || null,
-      thumbnail: row.thumbnail || row.thumbnail_url || '',
-      videoUrl: row.video_url || null,
-    }));
-    // refresh UI
+    const rows = await DB.loadVideosFromDB(supabase);
+    a.videos = rows;
     updateStatsCounts();
     updateSavedCount();
     g();
@@ -222,7 +183,7 @@ function V() {
       a.searchQuery = t.searchInput.value;
       p();
     }),
-    (t.uploadVideoBtn) == null || t.uploadVideoBtn.addEventListener('click', createUploadModal),
+    (t.uploadVideoBtn) == null || t.uploadVideoBtn.addEventListener('click', openUploadModalService),
     (I = t.aiAssistBtn) == null || I.addEventListener("click", oe),
     (t.sidebarBrand) == null || t.sidebarBrand.addEventListener("click", () => {
       // clicking the brand should open the sidebar on mobile or ensure it's visible on desktop
@@ -292,119 +253,6 @@ function V() {
     window.addEventListener("scroll", handleInfiniteScroll);
 }
 
-// Create a friendly popup upload modal
-function createUploadModal() {
-  // avoid multiple modals
-  if (document.getElementById('uploadModal')) return;
-  const modal = document.createElement('div');
-  modal.id = 'uploadModal';
-  modal.className = 'upload-modal';
-  modal.innerHTML = `
-    <div class="upload-modal-backdrop"></div>
-    <div class="upload-modal-content">
-      <button class="upload-modal-close" aria-label="Close">✕</button>
-      <h2>Upload Video</h2>
-      <form id="uploadForm" class="upload-form" autocomplete="off" autocorrect="off" spellcheck="false">
-        <div class="row"><input id="u_title" placeholder="Title" required></div>
-        <div class="row"><textarea id="u_description" placeholder="Description" style="resize: none"></textarea></div>
-        <div class="row inline">
-          <input id="u_duration" placeholder="Duration (e.g. 1:25:40)" autocomplete="off">
-          <input id="u_views" type="number" placeholder="Views" autocomplete="off">
-        </div>
-        <div class="row inline">
-          <input id="u_category" placeholder="Category" autocomplete="off">
-          <input id="u_rating" type="number" step="0.1" placeholder="Rating" autocomplete="off">
-        </div>
-        <div class="row inline">
-          <input id="u_youtube" placeholder="YouTube Link" autocomplete="off">
-          <input id="u_date" type="date" autocomplete="off">
-        </div>
-        <div class="row inline">
-          <input id="u_tags" placeholder="AI Tags (comma separated)" autocomplete="off">
-          <select id="u_difficulty"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
-        </div>
-  <div class="row inline">
-  <input id="u_thumbnail" placeholder="Thumbnail URL" autocomplete="off">
-  <input id="u_password" type="password" placeholder="Password" autocomplete="new-password">
-  </div>
-        <div class="row actions">
-          <button type="button" id="u_cancel" class="btn btn-outline">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  // trigger open animation
-  requestAnimationFrame(() => {
-    modal.classList.add('upload-modal-open');
-  });
-  // set default date to today in YYYY-MM-DD so uploads use current date by default
-  try {
-    const dateInput = modal.querySelector('#u_date');
-    if (dateInput) {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      dateInput.value = `${yyyy}-${mm}-${dd}`;
-    }
-  } catch (err) {
-    console.error('Failed to set default date on upload modal', err);
-  }
-  // animated close that waits for exit animation before removal
-  const close = () => {
-    modal.classList.remove('upload-modal-open');
-    modal.classList.add('upload-modal-closing');
-    // wait for animation to finish (match CSS -- 320ms)
-    setTimeout(() => {
-      modal.remove();
-    }, 320);
-  };
-  modal.querySelector('.upload-modal-backdrop').addEventListener('click', close);
-  modal.querySelector('.upload-modal-close').addEventListener('click', close);
-  modal.querySelector('#u_cancel').addEventListener('click', close);
-
-  modal.querySelector('#uploadForm').addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    // check developer password (not stored)
-    const pass = modal.querySelector('#u_password').value || '';
-    if (pass !== 'bD32CCc3') {
-      // wrong password: notify and abort
-      c('Are you Developer', 'error');
-      return;
-    }
-    const video = {
-      title: modal.querySelector('#u_title').value,
-      description: modal.querySelector('#u_description').value,
-      duration: modal.querySelector('#u_duration').value,
-      views: parseInt(modal.querySelector('#u_views').value) || 0,
-      category: modal.querySelector('#u_category').value,
-      youtube_link: modal.querySelector('#u_youtube').value,
-      upload_date: modal.querySelector('#u_date').value || new Date().toISOString(),
-      ai_tags: (modal.querySelector('#u_tags').value || '').split(',').map(s => s.trim()).filter(Boolean),
-      difficulty: modal.querySelector('#u_difficulty').value,
-      rating: parseFloat(modal.querySelector('#u_rating').value) || null,
-      thumbnail: modal.querySelector('#u_thumbnail').value,
-    };
-    // simple validation
-    if (!video.title) return c('Please enter a title', 'error');
-    try {
-      const { error } = await supabase.from('EduVideoDB').insert([video]);
-      if (error) {
-        console.error('upload error', error);
-        c('Upload failed', 'error');
-      } else {
-        c('Video uploaded', 'success');
-        close();
-        await loadVideosFromDB();
-      }
-    } catch (e) {
-      console.error(e);
-      c('Upload failed', 'error');
-    }
-  });
-}
 function j(e) {
   (a.searchQuery = e.target.value),
     a.searchQuery.length > 2 ? ue(U, 300)() : (m(), g());
@@ -454,41 +302,12 @@ function p() {
     a.searchQuery && e.length > 0 && c(`Found ${e.length} videos`, "info");
 }
 function b(e) {
-  // Start with all videos
-  let result = a.videos.slice();
-
-  // Apply search query filter if provided
-  if (e && e.trim()) {
-    const searchTerms = e
-      .toLowerCase()
-      .split(" ")
-      .filter((s) => s.length > 0);
-
-    result = result.filter((video) => {
-      const searchableText = [
-        video.title,
-        video.description,
-        video.category,
-        ...(video.aiTags || []),
-        video.difficulty,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return searchTerms.every((term) => searchableText.includes(term));
-    });
+  try {
+    return SEARCH.filterVideos(a, e);
+  } catch (err) {
+    console.error('SEARCH.filterVideos failed', err);
+    return a.videos.slice();
   }
-
-  // Apply category filters
-  if (a.activeFilters && a.activeFilters.length > 0) {
-    result = result.filter((video) =>
-      a.activeFilters.some((filter) => {
-        // Exact category match (case-insensitive)
-        return video.category && video.category.toLowerCase() === filter.toLowerCase();
-      })
-    );
-  }
-
-  return result;
 }
 
 // Toggle visibility of primary page sections depending on viewContext
@@ -564,19 +383,11 @@ function W(e) {
   );
 }
 function A(e, i) {
-  if (!i.trim()) return e;
-  const s = i
-    .toLowerCase()
-    .split(" ")
-    .filter((n) => n.length > 0);
-  let r = e;
-  return (
-    s.forEach((n) => {
-      const o = new RegExp(`(${n})`, "gi");
-      r = r.replace(o, "<mark>$1</mark>");
-    }),
-    r
-  );
+  try {
+    return SEARCH.highlightText(e, i);
+  } catch (err) {
+    return e;
+  }
 }
 function m() {
   if (t.searchResultsDropdown) t.searchResultsDropdown.classList.add("hidden");
@@ -758,74 +569,46 @@ function updateStatsCounts() {
   }
 }
 
+
 // Persist saved videos in localStorage
 function getSaved() {
-  try {
-    const raw = localStorage.getItem("eduvideo_saved");
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
-  }
+  try { return SAVED.getSaved(); } catch (e) { return []; }
 }
 
 function saveList(list) {
-  localStorage.setItem("eduvideo_saved", JSON.stringify(list));
+  try { SAVED.saveList(list); } catch (e) { }
 }
 
 function isSaved(id) {
-  const sid = String(id);
-  return getSaved().some((v) => String(v.id) === sid);
+  try { return SAVED.isSaved(id); } catch (e) { return false; }
 }
 
 function toggleSave(id) {
-  const saved = getSaved();
-  const sid = String(id);
-  const exists = saved.find((v) => String(v.id) === sid);
-  if (exists) {
-    const updated = saved.filter((v) => String(v.id) !== sid);
-    saveList(updated);
-    // show remove saved toast
-    c("Removed from saved", "info");
-  } else {
-    const video = a.videos.find((v) => String(v.id) === sid);
-    if (video) {
-      saved.push({ id: video.id, title: video.title, thumbnail: video.thumbnail, youtubeLink: video.youtubeLink || null });
-      saveList(saved);
-      // show saved toast
-      c("Video saved!", "success");
-    }
+  try {
+    SAVED.toggleSave(id, {
+      state: a,
+      notify: c,
+      renderSavedSection: () => renderSavedSection(),
+      updateSavedCount: () => updateSavedCount()
+    });
+  } catch (e) {
+    console.error('toggleSave failed', e);
   }
-  updateSavedCount();
-  // If on the Saved view, re-render the saved section to reflect changes immediately
-  if (a.viewContext === 'saved') {
-    renderSavedSection();
-  }
-  // notify other UI parts to refresh saved state
-  try { window.dispatchEvent(new CustomEvent('eduvideo:saved-changed', { detail: { id } })); } catch (e) { }
 }
 
 function updateSavedCount() {
-  const count = getSaved().length;
-  if (t.savedCount) t.savedCount.textContent = count;
+  try { return SAVED.updateSavedCount({ savedCountEl: t.savedCount }); } catch (e) { }
 }
 
 function renderSavedSection() {
-  // when user navigates to 'saved' route, show saved videos in videos grid
   a.viewContext = 'saved';
   applyViewContextUI();
-  // Reset current page to 1 when entering the saved section
   a.currentPage = 1;
-  const saved = getSaved();
-  // show a nicer header in the featured area for saved content
-  if (saved.length === 0) {
-    t.videosGrid.innerHTML = `<div class="no-results"><h3>No saved videos</h3><p>You haven't saved any videos yet.</p></div>`;
-    if (t.loadMoreContainer) t.loadMoreContainer.classList.add("hidden"); // Hide load more if no saved videos
-    return;
+  try {
+    SAVED.renderSavedSection({ state: a, dom: t, renderVideos: g, iconLib: lucide });
+  } catch (e) {
+    console.error('renderSavedSection failed', e);
   }
-  // Call g() to render the paginated saved videos
-  g();
-  updateSavedCount();
-  lucide.createIcons();
 }
 
 // Video modal helpers
@@ -1056,7 +839,6 @@ if (t.modalSaveBtn) t.modalSaveBtn.addEventListener("click", () => {
 });
 
 // Focus trap utilities for modal
-let _previouslyFocused = null;
 // ...existing code...
 
 // Hide user menu three-dots when sidebar collapsed (improve UX)
@@ -1099,28 +881,14 @@ window.addEventListener('eduvideo:saved-changed', (ev) => {
   if (currentModalVideoId && t.modalSaveBtn) t.modalSaveBtn.classList.toggle('active', isSaved(currentModalVideoId));
 });
 function X(e, i) {
-  const s = [...e];
-  switch (i) {
-    case "newest":
-      return s.sort((r, n) => n.uploadDate - r.uploadDate);
-    case "oldest":
-      return s.sort((r, n) => r.uploadDate - n.uploadDate);
-    case "most-viewed":
-      return s.sort((r, n) => n.views - r.views);
-    case "duration-short":
-      return s.sort((r, n) => v(r.duration) - v(n.duration));
-    case "duration-long":
-      return s.sort((r, n) => v(n.duration) - v(r.duration));
-    case "alphabetical":
-      return s.sort((r, n) => r.title.localeCompare(n.title));
-    case "relevance":
-    default:
-      return s;
+  try {
+    return SEARCH.sortVideos(e, i);
+  } catch (err) {
+    return e;
   }
 }
 function v(e) {
-  const i = e.split(":").map(Number);
-  return i.length === 3 ? i[0] * 3600 + i[1] * 60 + i[2] : i[0] * 60 + i[1];
+  try { return SEARCH.parseDuration(e); } catch (err) { return 0; }
 }
 function Y(e) {
   a.sortBy = e.target.value;
@@ -1446,8 +1214,7 @@ function ie(e) {
       // keep AI suggestions toast when generated successfully (handled in oe())
       break;
     case "upload-content":
-      // open the upload modal when user clicks the quick-action
-      if (typeof createUploadModal === 'function') createUploadModal();
+      openUploadModalService();
       break;
     case "analytics":
       // suppressed
@@ -1587,47 +1354,12 @@ function le() {
   }
 }
 function c(e, i = "info") {
-  const s = document.createElement("div");
-  s.className = `toast toast-${i}`;
-  const r =
-    {
-      success: "check-circle",
-      error: "x-circle",
-      warning: "alert-triangle",
-      info: "info",
-    }[i] || "info";
-  (s.innerHTML = `
-    <div class="toast-content">
-      <i data-lucide="${r}"></i>
-      <span>${e}</span>
-    </div>
-    <button class="toast-close">
-      <i data-lucide="x"></i>
-    </button>
-  `),
-    // make individual toast clickable while container ignores pointer events
-    Object.assign(s.style, {
-      pointerEvents: 'auto',
-      position: 'relative',
-      // ensure each toast sits above other UI within the high-priority container
-      boxShadow: '0 6px 18px rgba(0,0,0,0.12)'
-    }),
-    // enforce z-index with !important on the toast itself
-    (function () { try { s.style.setProperty('z-index', '2147483647', 'important'); } catch (e) { } })(),
-    t.toastContainer.appendChild(s),
-    lucide.createIcons(),
-    setTimeout(() => {
-      s.classList.add("removing"),
-        setTimeout(() => {
-          s.parentNode && s.parentNode.removeChild(s);
-        }, 300);
-    }, 3e3),
-    s.querySelector(".toast-close").addEventListener("click", () => {
-      s.classList.add("removing"),
-        setTimeout(() => {
-          s.parentNode && s.parentNode.removeChild(s);
-        }, 300);
-    });
+  // Delegate to service toast implementation
+  try {
+    TOAST(e, i);
+  } catch (err) {
+    console.warn('Toast service failed, message:', e, 'type:', i, err);
+  }
 }
 function de() {
   document.querySelectorAll("[data-count]").forEach((i) => {
