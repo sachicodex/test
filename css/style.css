@@ -1223,11 +1223,7 @@ body.sidebar-open {
 }
 .upload-modal-content {
   position: relative;
-  background: linear-gradient(
-    180deg,
-    rgba(50, 50, 50, 0.98),
-    rgba(38, 38, 38, 0.98)
-  );
+  background: #181c25;
   padding: 28px;
   border-radius: 12px;
   width: min(1100px, 94%);
@@ -1308,7 +1304,7 @@ body.sidebar-open {
 .upload-form textarea,
 .upload-form select {
   flex: 1 1 0;
-  background: #313131;
+  background: #22262F;
   /* box-shadow:  0px 0px 5px 2px rgb(255, 255, 255); */
   padding: 12px 14px;
   border-radius: 10px;
