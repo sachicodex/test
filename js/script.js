@@ -262,7 +262,7 @@ function O(e) {
     a.searchQuery = t.searchInput.value;
     const myVideosNav = document.querySelector('.nav-item[data-route="my-videos"]');
     if (myVideosNav) {
-        ee({ preventDefault: () => {} }, myVideosNav);
+      ee({ preventDefault: () => { } }, myVideosNav);
     }
   } else if (e.key === "Escape") {
     m();
@@ -1068,7 +1068,7 @@ function performMobileSearch() {
       closeMobileSearchModal();
       const myVideosNav = document.querySelector('.nav-item[data-route="my-videos"]');
       if (myVideosNav) {
-          ee({ preventDefault: () => {} }, myVideosNav);
+        ee({ preventDefault: () => { } }, myVideosNav);
       }
     }
   }
@@ -1459,4 +1459,26 @@ function clearAllFilters() {
   c("All filters cleared", "success");
 }
 
+// Initialize chatbot
+async function initializeChatbot() {
+  try {
+    // Import chatbot module
+    const { default: ChatbotUI } = await import('./chatbot.js');
+
+    // Initialize chatbot UI
+    window.chatbotUI = new ChatbotUI();
+
+    // Set up database connection
+    if (window.chatbotUI && supabase) {
+      window.chatbotUI.setDatabase(supabase);
+    }
+
+    console.log('SachiDev chatbot initialized successfully!');
+  } catch (error) {
+    console.error('Failed to initialize chatbot:', error);
+  }
+}
+
+// Initialize chatbot after main app initialization
 N();
+initializeChatbot();

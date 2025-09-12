@@ -16,7 +16,9 @@
     <!-- Lucide Icons -->
     <script src="js/main.js"></script>
     <script type="module" src="js/script.js"></script>
-                            <link rel="stylesheet" href="css/style.css"></head>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/chatbot.css">
+</head>
   <body>
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
@@ -558,6 +560,100 @@
           <i data-lucide="user"></i>
           <span>Profile</span>
         </a>
+      </div>
+    </div>
+
+    <!-- SachiDev Chatbot -->
+    <button id="chatbot-toggle" class="chatbot-toggle" title="Open SachiDev">
+      <i data-lucide="message-circle"></i>
+    </button>
+
+    <div id="chatbot-container" class="chatbot-container">
+      <div class="chatbot-header">
+        <div class="chatbot-header-content">
+          <div class="chatbot-avatar">SD</div>
+          <div class="chatbot-info">
+            <h3 class="chatbot-name">SachiDev</h3>
+            <div class="chatbot-status">
+              <div class="chatbot-status-dot"></div>
+              <span>Ready to help!</span>
+            </div>
+          </div>
+        </div>
+        <div class="chatbot-controls">
+          <button id="chatbot-minimize" class="chatbot-btn" title="Minimize">
+            <i data-lucide="minus"></i>
+          </button>
+          <button id="chatbot-close" class="chatbot-btn" title="Close">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Welcome Screen -->
+      <div class="chatbot-welcome" id="chatbot-welcome">
+        <h1 class="chatbot-welcome-title">HI THERE!</h1>
+        <p class="chatbot-welcome-subtitle">What Do You Want To Chat About Today?</p>
+        
+        <div class="chatbot-topic-cards">
+          <div class="chatbot-topic-card" data-topic="education">
+            <div class="chatbot-topic-icon">
+              <i data-lucide="graduation-cap"></i>
+            </div>
+            <div class="chatbot-topic-content">
+              <h3 class="chatbot-topic-title">Education</h3>
+              <p class="chatbot-topic-description">How to apply to universities?</p>
+            </div>
+          </div>
+          
+          <div class="chatbot-topic-card" data-topic="productivity">
+            <div class="chatbot-topic-icon">
+              <i data-lucide="zap"></i>
+            </div>
+            <div class="chatbot-topic-content">
+              <h3 class="chatbot-topic-title">Productivity</h3>
+              <p class="chatbot-topic-description">Be 10x more productive with your work</p>
+            </div>
+          </div>
+          
+          <div class="chatbot-topic-card" data-topic="health">
+            <div class="chatbot-topic-icon">
+              <i data-lucide="heart"></i>
+            </div>
+            <div class="chatbot-topic-content">
+              <h3 class="chatbot-topic-title">Health & Wellness</h3>
+              <p class="chatbot-topic-description">Make your health better than ever</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Suggestions on welcome screen -->
+        <div class="chatbot-suggestions" id="chatbot-suggestions">
+          <button class="chatbot-suggestion" data-suggestion="What is artificial intelligence?">AI Questions</button>
+          <button class="chatbot-suggestion" data-suggestion="Show me programming tutorials">Programming</button>
+          <button class="chatbot-suggestion" data-suggestion="How to learn a new language?">Learning</button>
+          <button class="chatbot-suggestion" data-suggestion="Find science videos">Science</button>
+        </div>
+      </div>
+
+      <!-- Chat Messages -->
+      <div class="chatbot-messages" id="chatbot-messages" style="display: none;">
+        <!-- Messages will be added here dynamically -->
+      </div>
+
+      <!-- Input Area -->
+      <div class="chatbot-input-area" id="chatbot-input-area" style="display: none;">
+        <div class="chatbot-input-container">
+          <textarea 
+            id="chatbot-input" 
+            class="chatbot-input" 
+            placeholder="What is on your mind?"
+            rows="1"
+          ></textarea>
+          <button id="chatbot-send" class="chatbot-send-btn" title="Send message">
+            <i data-lucide="send"></i>
+          </button>
+        </div>
       </div>
     </div>
 
