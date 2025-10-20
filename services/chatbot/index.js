@@ -3,7 +3,7 @@
 
 class SachiDevChatbot {
   constructor() {
-    this.apiKey = 'AIzaSyDY5VgoB8_Rvlmna0xPfiRow3FD2VrheQw';
+    this.apiKey = 'AIzaSyBa32nw_x0mjmno4IN4RqTn1A2DQeD_4GE';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
     this.conversationHistory = [];
     this.isTyping = false;
@@ -207,7 +207,7 @@ class SachiDevChatbot {
       const tokens = q
         .split(/\s+/)
         .map(t => t.trim())
-        .filter(t => t.length > 1 && !['which','what','do','you','have','the','a','an','is','of','for','to'].includes(t));
+        .filter(t => t.length > 1 && !['which', 'what', 'do', 'you', 'have', 'the', 'a', 'an', 'is', 'of', 'for', 'to'].includes(t));
 
       let orExpr = '';
       if (tokens.length) {
